@@ -338,6 +338,19 @@ DROGON_TEST(PayPayment_OrmRoundTrip)
     drogon::orm::Mapper<PayPayment> mapper(client);
 
     const auto orderNo = "order_" + drogon::utils::getUuid();
+    using PayOrder = drogon_model::pay_test::PayOrder;
+    drogon::orm::Mapper<PayOrder> orderMapper(client);
+
+    PayOrder orderRow;
+    orderRow.setOrderNo(orderNo);
+    orderRow.setUserId(12345);
+    orderRow.setAmount("12.34");
+    orderRow.setCurrency("CNY");
+    orderRow.setStatus("SUCCESS");
+    orderRow.setChannel("WECHAT");
+    orderRow.setTitle("Test order");
+
+    orderMapper.insert(orderRow);
     const auto paymentNo = "pay_" + drogon::utils::getUuid();
 
     PayPayment row;
@@ -402,6 +415,32 @@ DROGON_TEST(PayRefund_OrmRoundTrip)
     const auto paymentNo = "pay_" + drogon::utils::getUuid();
 
     PayRefund row;
+
+    using PayOrder = drogon_model::pay_test::PayOrder;
+    using PayPayment = drogon_model::pay_test::PayPayment;
+    drogon::orm::Mapper<PayOrder> orderMapper(client);
+    drogon::orm::Mapper<PayPayment> paymentMapper(client);
+
+    PayOrder orderRow;
+    orderRow.setOrderNo(orderNo);
+    orderRow.setUserId(67890);
+    orderRow.setAmount("5.67");
+    orderRow.setCurrency("CNY");
+    orderRow.setStatus("SUCCESS");
+    orderRow.setChannel("WECHAT");
+    orderRow.setTitle("Refund test order");
+
+    orderMapper.insert(orderRow);
+
+    PayPayment paymentRow;
+    paymentRow.setOrderNo(orderNo);
+    paymentRow.setPaymentNo(paymentNo);
+    paymentRow.setStatus("SUCCESS");
+    paymentRow.setAmount("5.67");
+    paymentRow.setRequestPayload("{\"request\":true}");
+    paymentRow.setResponsePayload("{\"response\":true}");
+
+    paymentMapper.insert(paymentRow);
     row.setRefundNo(refundNo);
     row.setOrderNo(orderNo);
     row.setPaymentNo(paymentNo);

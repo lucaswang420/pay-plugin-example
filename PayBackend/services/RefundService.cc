@@ -186,7 +186,7 @@ void RefundService::createRefund(
                     Json::Value error;
                     error["code"] = 1004;
                     error["message"] = "Idempotency conflict: different parameters for same key";
-                    (*sharedCb)(error, std::error_code(1409, std::system_category()));
+                    (*sharedCb)(error, std::error_code(409, std::system_category()));
                 }
                 return;
             }
@@ -504,8 +504,8 @@ void RefundService::proceedWithInsert(
                 if (*sharedCb) {
                     Json::Value error;
                     error["code"] = 1409;
-                    error["message"] = "Refund amount exceeds paid";
-                    (*sharedCb)(error, std::error_code(1409, std::system_category()));
+                    error["message"] = "refund amount exceeds paid";
+                    (*sharedCb)(error, std::error_code(409, std::system_category()));
                 }
                 return;
             }
