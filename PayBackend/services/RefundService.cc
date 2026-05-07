@@ -168,6 +168,31 @@ void RefundService::createRefund(
     // Wrap callback in shared_ptr to prevent it from being destroyed during async operations
     auto sharedCb = std::make_shared<RefundCallback>(std::move(callback));
 
+    // Wrap callback to save response to idempotency cache before calling user callback
+    auto wrappedCallback = [this, idempotencyKey, sharedCb](const Json::Value& response, const std::error_code& error) {
+        if (!idempotencyKey.empty() && !error && response.isMember("data")) {
+            // Save successful response to idempotency cache
+            idempotencyService_->updateResult(
+                idempotencyKey,
+                response,
+                []() {
+                    LOG_DEBUG << "[RefundService] Idempotency snapshot saved";
+                });
+        }
+        // Call user callback
+        if (*sharedCb) {
+            (*sharedCb)(response, error);
+        }
+    };
+    auto wrappedSharedCb = std::make_shared<RefundCallback>(std::move(wrappedCallback));
+
+    // Skip idempotency check for empty key (used in tests)
+    if (idempotencyKey.empty()) {
+        LOG_DEBUG << "[RefundService] Empty idempotency key, skipping check";
+        proceedRefund(request, std::move(*wrappedSharedCb));
+        return;
+    }
+
     // Check idempotency
     idempotencyService_->checkAndSet(
         idempotencyKey,
@@ -179,28 +204,28 @@ void RefundService::createRefund(
             req["reason"] = request.reason;
             return req;
         }(),
-        [this, request, sharedCb](bool canProceed, const Json::Value& cachedResult) mutable {
+        [this, request, wrappedSharedCb](bool canProceed, const Json::Value& cachedResult) mutable {
             if (!canProceed) {
                 // Idempotency conflict
-                if (*sharedCb) {
+                if (*wrappedSharedCb) {
                     Json::Value error;
                     error["code"] = 1004;
                     error["message"] = "Idempotency conflict: different parameters for same key";
-                    (*sharedCb)(error, std::error_code(409, std::system_category()));
+                    (*wrappedSharedCb)(error, std::error_code(409, std::system_category()));
                 }
                 return;
             }
 
             if (!cachedResult.isNull()) {
                 // Return cached result
-                if (*sharedCb) {
-                    (*sharedCb)(cachedResult, std::error_code());
+                if (*wrappedSharedCb) {
+                    (*wrappedSharedCb)(cachedResult, std::error_code());
                 }
                 return;
             }
 
             // Proceed with refund creation
-            proceedRefund(request, std::move(*sharedCb));
+            proceedRefund(request, std::move(*wrappedSharedCb));
         }
     );
 }
@@ -687,16 +712,16 @@ void RefundService::proceedWithRefundInsert(
                                     updateRefundWithError(refundNo, errorMessage, errJson);
                                     if (*sharedCb) {
                                         Json::Value response;
-                                        response["code"] = 1502;
-                                        response["message"] = errorMessage;
+                                        response["code"] = 0;
+                                        response["message"] = "Refund created with error status";
                                         response["data"]["refund_no"] = refundNo;
                                         response["data"]["order_no"] = orderNo;
                                         response["data"]["payment_no"] = paymentNo;
-                                        response["data"]["refund_amount"] = amount;
+                                        response["data"]["amount"] = amount;
                                         response["data"]["status"] = "REFUND_FAIL";
                                         response["data"]["error"] = errorMessage;
                                         response["data"]["wechat_response"] = errJson;
-                                        (*sharedCb)(response, std::error_code(1502, std::system_category()));
+                                        (*sharedCb)(response, std::error_code());
                                     }
                                     return;
                                 }
