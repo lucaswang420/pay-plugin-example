@@ -580,4 +580,5 @@ uploads/tmp/[0-9A-F][0-9A-F]
 .env
 .env.local
 .env.*.local
-config.json
+
+models_backup/

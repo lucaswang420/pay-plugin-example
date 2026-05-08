@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM Run script for Pay Plugin Backend
 
 echo ========================================

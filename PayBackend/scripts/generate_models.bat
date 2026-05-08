@@ -15,18 +15,36 @@ REM
 REM After regeneration, you may need to update service files to use
 REM the new model interfaces.
 REM
+REM Usage:
+REM   generate_models.bat         - Interactive mode (with confirmation)
+REM   generate_models.bat -y      - Non-interactive mode (auto-confirm)
+REM   generate_models.bat --force - Same as -y
+REM
 REM ========================================================================
+
+REM Parse command line arguments
+set AUTO_MODE=0
+if "%1"=="-y" set AUTO_MODE=1
+if "%1"=="--force" set AUTO_MODE=1
+if "%1"=="-Y" set AUTO_MODE=1
+if "%1"=="-yes" set AUTO_MODE=1
 
 echo.
 echo ========================================
 echo Pay Plugin Model Generation
 echo ========================================
 echo.
-echo WARNING: This will regenerate ORM models currently in use!
-echo.
-echo Press Ctrl+C to cancel, or
-pause
-echo.
+
+if %AUTO_MODE%==0 (
+  echo WARNING: This will regenerate ORM models currently in use!
+  echo.
+  echo Press Ctrl+C to cancel, or
+  pause
+  echo.
+) else (
+  echo Auto-confirmed mode: skipping user prompts
+  echo.
+)
 
 cd /d "%~dp0.."
 
@@ -48,7 +66,11 @@ if exist "models" (
 echo Generating ORM models from model.json...
 echo.
 
-drogon_ctl create model models
+if %AUTO_MODE%==1 (
+  echo y | drogon_ctl create model models
+) else (
+  drogon_ctl create model models
+)
 if %errorlevel% neq 0 (
   echo.
   echo Error: drogon_ctl failed
@@ -75,3 +97,6 @@ echo   - plugins/PayPlugin.cc
 echo.
 echo Please review the changes and rebuild the project.
 echo.
+
+endlocal
+exit /b 0

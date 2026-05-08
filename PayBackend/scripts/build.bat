@@ -6,6 +6,18 @@ echo ========================================
 echo Pay Plugin Backend Build Script
 echo ========================================
 
+REM ========================================
+REM Kill any running PayServer processes
+REM ========================================
+echo Checking for running PayServer processes...
+taskkill /F /IM PayServer.exe >nul 2>&1
+if %errorlevel% equ 0 (
+    echo Killed running PayServer.exe process
+    timeout /t 1 /nobreak >nul
+) else (
+    echo No running PayServer.exe process found
+)
+
 REM Change to PayBackend directory
 cd /d "%~dp0.."
 echo Working directory: %CD%
@@ -104,4 +116,5 @@ echo ========================================
 echo Build complete!
 echo ========================================
 cd /d "%~dp0.."
-pause
+endlocal
+exit /b 0
