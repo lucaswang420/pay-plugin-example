@@ -53,6 +53,7 @@ public:
     // Update result after successful operation
     void updateResult(
         const std::string& idempotencyKey,
+        const std::string& requestHash,
         const Json::Value& response,
         UpdateCallback&& callback = [](){}
     );
@@ -67,12 +68,5 @@ private:
         const std::string& requestHash,
         const Json::Value& request,
         CheckCallback&& callback
-    );
-
-    void insertToDatabase(
-        const std::string& key,
-        const std::string& hash,
-        const Json::Value& request,
-        std::function<void()>&& callback
     );
 };

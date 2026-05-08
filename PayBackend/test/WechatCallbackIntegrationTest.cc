@@ -26,10 +26,14 @@ bool loadConfig(Json::Value &root)
     const std::vector<std::filesystem::path> candidates = {
         cwd / "config.json",
         cwd / "test" / "Release" / "config.json",
+        cwd / "test" / "Debug" / "config.json",
         cwd / "Release" / "config.json",
+        cwd / "Debug" / "config.json",
         cwd.parent_path() / "config.json",
         cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "Release" / "config.json"};
+        cwd.parent_path() / "test" / "Debug" / "config.json",
+        cwd.parent_path() / "Release" / "config.json",
+        cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -418,7 +422,7 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -638,7 +642,7 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -757,7 +761,7 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
 
     client->execSqlSync(
         "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expires_at) "
+        "(idempotency_key, request_hash, response_snapshot, expire_at) "
         "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
         notifyId,
         "hash",
@@ -853,7 +857,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_refund ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -951,7 +955,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
 
     client->execSqlSync(
         "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expires_at) "
+        "(idempotency_key, request_hash, response_snapshot, expire_at) "
         "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
         notifyId,
         "hash",
@@ -1046,7 +1050,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -1266,7 +1270,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -1486,7 +1490,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -1706,7 +1710,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -1926,7 +1930,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -2146,7 +2150,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -2363,7 +2367,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidSignature)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -2560,7 +2564,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -2760,7 +2764,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingSignatureHeaders)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -4181,7 +4185,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -4381,7 +4385,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -4608,7 +4612,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -4808,7 +4812,7 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -5008,7 +5012,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -5172,7 +5176,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     auto callbackService = plugin.callbackService();
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
-    callbackService->handlePaymentCallback(
+    callbackService->handleRefundCallback(
         std::string(req->body()),
         std::string(req->getHeader("Wechatpay-Signature")),
         std::string(req->getHeader("Wechatpay-Timestamp")),
@@ -5264,7 +5268,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -5475,7 +5479,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -5686,7 +5690,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -5879,7 +5883,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -6196,7 +6200,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -6439,7 +6443,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"
@@ -6650,7 +6654,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
         "request_hash VARCHAR(64) NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_order ("
         "id BIGSERIAL PRIMARY KEY,"

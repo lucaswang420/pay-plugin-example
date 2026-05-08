@@ -1,4 +1,5 @@
 #include "PaymentService.h"
+#include "PayErrorCategory.h"
 #include "../models/PayOrder.h"
 #include "../models/PayPayment.h"
 #include "../models/PayLedger.h"
@@ -175,7 +176,7 @@ void PaymentService::createPayment(
                 Json::Value error;
                 error["code"] = 1004;
                 error["message"] = "Idempotency conflict: different parameters for same key";
-                callback(error, std::error_code());
+                callback(error, pay::makePayError(1004, "idempotency key conflict"));
                 return;
             }
 
@@ -192,7 +193,7 @@ void PaymentService::createPayment(
                 Json::Value error;
                 error["code"] = 1001;
                 error["message"] = "Invalid amount format";
-                callback(error, std::error_code());
+                callback(error, pay::makePayError(1001, "Invalid amount format"));
                 return;
             }
 
@@ -222,6 +223,19 @@ void PaymentService::proceedCreatePayment(
     order.setTitle(request.description);
     order.setCreatedAt(trantor::Date::now());
     order.setUpdatedAt(trantor::Date::now());
+
+    // Parse and set expire_at if timeExpire is provided
+    if (!request.timeExpire.empty()) {
+        try {
+            // Parse RFC 3339 format (e.g., "2026-05-07T12:34:56+08:00")
+            // trantor::Date can parse ISO 8601 format
+            trantor::Date expireDate = trantor::Date::fromDbStringLocal(request.timeExpire);
+            order.setExpireAt(expireDate);
+        } catch (const std::exception& e) {
+            LOG_WARN << "Failed to parse timeExpire '" << request.timeExpire << "': " << e.what();
+            // Continue without setting expire_at
+        }
+    }
 
     // Build payment request payload based on channel
     Json::Value payload;
@@ -262,6 +276,16 @@ void PaymentService::proceedCreatePayment(
 
         if (!request.sceneInfo.isNull()) {
             payload["scene_info"] = request.sceneInfo;
+        }
+
+        // Add time_expire if provided
+        if (!request.timeExpire.empty()) {
+            payload["time_expire"] = request.timeExpire;
+        }
+
+        // Add attach if provided
+        if (!request.attach.empty()) {
+            payload["attach"] = request.attach;
         }
     }
 
@@ -339,7 +363,7 @@ void PaymentService::proceedCreatePayment(
                                                         Json::Value response;
                                                         response["code"] = 1003;
                                                         response["message"] = "Database error during payment failure update";
-                                                        (*sharedCb)(response, std::error_code());
+                                                        (*sharedCb)(response, pay::makePayError(1003, "Database error during payment failure update"));
                                                     }
                                                 });
                                         },
@@ -348,7 +372,7 @@ void PaymentService::proceedCreatePayment(
                                                 Json::Value response;
                                                 response["code"] = 1003;
                                                 response["message"] = "Database error during payment failure update";
-                                                (*sharedCb)(response, std::error_code());
+                                                (*sharedCb)(response, pay::makePayError(1003, "Database error during payment failure update"));
                                             }
                                         });
                                 },
@@ -357,7 +381,7 @@ void PaymentService::proceedCreatePayment(
                                         Json::Value response;
                                         response["code"] = 1003;
                                         response["message"] = "Database error during payment failure update";
-                                        (*sharedCb)(response, std::error_code());
+                                        (*sharedCb)(response, pay::makePayError(1003, "Database error during payment failure update"));
                                     }
                                 });
 
@@ -367,7 +391,7 @@ void PaymentService::proceedCreatePayment(
                                 response["code"] = 1002;
                                 std::string channelName = request.channel == "alipay" ? "Alipay" : "WeChat Pay";
                                 response["message"] = channelName + " error: " + error;
-                                (*sharedCb)(response, std::error_code());
+                                (*sharedCb)(response, pay::makePayError(1002, error));
                             }
                             return;
                         }
@@ -449,7 +473,7 @@ void PaymentService::proceedCreatePayment(
                                                             Json::Value response;
                                                             response["code"] = 1003;
                                                             response["message"] = "Database error: " + std::string(e.base().what());
-                                                            (*sharedCb)(response, std::error_code());
+                                                            (*sharedCb)(response, pay::makePayError(1003, "Database error: " + std::string(e.base().what())));
                                                         }
                                                     });
                                             },
@@ -458,7 +482,7 @@ void PaymentService::proceedCreatePayment(
                                                     Json::Value response;
                                                     response["code"] = 1003;
                                                     response["message"] = "Database error: " + std::string(e.base().what());
-                                                    (*sharedCb)(response, std::error_code());
+                                                    (*sharedCb)(response, pay::makePayError(1003, "Database error: " + std::string(e.base().what())));
                                                 }
                                             });
                                     },
@@ -467,7 +491,7 @@ void PaymentService::proceedCreatePayment(
                                             Json::Value response;
                                             response["code"] = 1003;
                                             response["message"] = "Database error: " + std::string(e.base().what());
-                                            (*sharedCb)(response, std::error_code());
+                                            (*sharedCb)(response, pay::makePayError(1003, "Database error: " + std::string(e.base().what())));
                                         }
                                     });
                             },
@@ -476,7 +500,7 @@ void PaymentService::proceedCreatePayment(
                                     Json::Value response;
                                     response["code"] = 1003;
                                     response["message"] = "Database error: " + std::string(e.base().what());
-                                    (*sharedCb)(response, std::error_code());
+                                    (*sharedCb)(response, pay::makePayError(1003, "Database error: " + std::string(e.base().what())));
                                 }
                             });
                     };
@@ -814,7 +838,7 @@ void PaymentService::queryOrder(
                 Json::Value response;
                 response["code"] = 1004;
                 response["message"] = "Order not found: " + std::string(e.base().what());
-                (*sharedCb)(response, std::error_code());
+                (*sharedCb)(response, pay::makePayError(1004, "Order not found: " + std::string(e.base().what())));
             }
         });
 }

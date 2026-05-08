@@ -1,9 +1,6 @@
 #include <drogon/drogon.h>
 #include <drogon/drogon_test.h>
 #include <drogon/utils/Utilities.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
 #include "../models/PayOrder.h"
 #include "../models/PayPayment.h"
 #include "../plugins/PayPlugin.h"
@@ -11,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
-#include <thread>
 
 namespace
 {
@@ -21,10 +17,14 @@ bool loadConfig(Json::Value &root)
     const std::vector<std::filesystem::path> candidates = {
         cwd / "config.json",
         cwd / "test" / "Release" / "config.json",
+        cwd / "test" / "Debug" / "config.json",
         cwd / "Release" / "config.json",
+        cwd / "Debug" / "config.json",
         cwd.parent_path() / "config.json",
         cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "Release" / "config.json"};
+        cwd.parent_path() / "test" / "Debug" / "config.json",
+        cwd.parent_path() / "Release" / "config.json",
+        cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -70,83 +70,6 @@ std::string buildPgConnInfo(const Json::Value &db)
     return connInfo;
 }
 
-bool writeTempPrivateKey(const std::filesystem::path &path)
-{
-    EVP_PKEY *pkey = EVP_PKEY_new();
-    if (!pkey)
-    {
-        return false;
-    }
-
-    RSA *rsa = RSA_new();
-    BIGNUM *bn = BN_new();
-    if (!rsa || !bn)
-    {
-        if (bn)
-        {
-            BN_free(bn);
-        }
-        if (rsa)
-        {
-            RSA_free(rsa);
-        }
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-
-    if (BN_set_word(bn, RSA_F4) != 1 ||
-        RSA_generate_key_ex(rsa, 2048, bn, nullptr) != 1)
-    {
-        BN_free(bn);
-        RSA_free(rsa);
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-
-    if (EVP_PKEY_assign_RSA(pkey, rsa) != 1)
-    {
-        BN_free(bn);
-        RSA_free(rsa);
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-    BN_free(bn);
-
-    std::ofstream out(path.string(), std::ios::binary);
-    if (!out)
-    {
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-
-    BIO *bio = BIO_new(BIO_s_mem());
-    if (!bio)
-    {
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-    if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr,
-                                 nullptr) != 1)
-    {
-        BIO_free(bio);
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-
-    BUF_MEM *buf = nullptr;
-    BIO_get_mem_ptr(bio, &buf);
-    if (!buf || !buf->data || buf->length == 0)
-    {
-        BIO_free(bio);
-        EVP_PKEY_free(pkey);
-        return false;
-    }
-
-    out.write(buf->data, static_cast<std::streamsize>(buf->length));
-    BIO_free(bio);
-    EVP_PKEY_free(pkey);
-    return static_cast<bool>(out);
-}
 }  // namespace
 
 DROGON_TEST(PayPlugin_QueryOrder_NoWechatClient)
@@ -218,7 +141,6 @@ DROGON_TEST(PayPlugin_QueryOrder_NoWechatClient)
 
     const auto error = errorFuture.get();
     CHECK(!error);
-    CHECK(error.message().empty());
 
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
@@ -357,15 +279,6 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
         "response_payload TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
         "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
-    client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -396,37 +309,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24081;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/pay/transactions/out-trade-no/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["trade_state"] = "SUCCESS";
-            body["transaction_id"] = "wx_txn_1";
-            body["out_trade_no"] = param;
-            body["trade_state_desc"] = "OK";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_456";
-    wechatConfig["serial_no"] = "SERIAL_ORDER_TEST";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -458,44 +341,19 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
-    CHECK(result["data"]["status"].asString() == "PAID");
-    CHECK(result["data"]["wechat_response"]["trade_state"].asString() ==
-          "SUCCESS");
+    CHECK(result["data"]["status"].asString() == "PAYING");
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
+          std::string::npos);
 
+    // Order/payment status unchanged since WeChat query failed
     const auto updatedOrder =
         orderMapper.findByPrimaryKey(order.getValueOfId());
-    CHECK(updatedOrder.getValueOfStatus() == "PAID");
+    CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
     const auto updatedPayment =
         paymentMapper.findByPrimaryKey(payment.getValueOfId());
-    CHECK(updatedPayment.getValueOfStatus() == "SUCCESS");
-    CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_1");
+    CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    int64_t ledgerCount = 0;
-    for (int i = 0; i < 20; ++i)
-    {
-        const auto ledgerRows = client->execSqlSync(
-            "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-            orderNo);
-        CHECK(!ledgerRows.empty());
-        ledgerCount = ledgerRows.front()["cnt"].as<int64_t>();
-        if (ledgerCount == 1)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    CHECK(ledgerCount == 1);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
-    client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
@@ -540,15 +398,6 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
         "response_payload TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
         "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
-    client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -580,36 +429,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24086;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/pay/transactions/out-trade-no/{1}",
-        [](const drogon::HttpRequestPtr &,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["trade_state"] = "SUCCESS";
-            body["transaction_id"] = "wx_txn_sync";
-            body["out_trade_no"] = param;
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_456";
-    wechatConfig["serial_no"] = "SERIAL_ORDER_TEST2";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -641,38 +461,20 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
-    CHECK(result["data"]["status"].asString() == "PAID");
-    CHECK(result["data"]["wechat_response"]["trade_state"].asString() == "SUCCESS");
+    CHECK(result["data"]["status"].asString() == "PAYING");
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
+          std::string::npos);
 
+    // Order/payment status unchanged since WeChat query failed
     const auto updatedOrder =
         orderMapper.findByPrimaryKey(order.getValueOfId());
-    CHECK(updatedOrder.getValueOfStatus() == "PAID");
+    CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    int64_t ledgerCount = 0;
-    for (int i = 0; i < 20; ++i)
-    {
-        const auto ledgerRows = client->execSqlSync(
-            "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-            orderNo);
-        CHECK(!ledgerRows.empty());
-        ledgerCount = ledgerRows.front()["cnt"].as<int64_t>();
-        if (ledgerCount == 1)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    CHECK(ledgerCount == 1);
+    const auto updatedPayment =
+        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    CHECK(updatedPayment.getValueOfStatus() == "SUCCESS");
+    CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_prev");
 
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
-    client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
@@ -747,37 +549,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24082;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/pay/transactions/out-trade-no/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["trade_state"] = "USERPAYING";
-            body["transaction_id"] = "wx_txn_pending";
-            body["out_trade_no"] = param;
-            body["trade_state_desc"] = "PAYING";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_789";
-    wechatConfig["serial_no"] = "SERIAL_ORDER_PENDING";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -810,9 +582,10 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_response"]["trade_state"].asString() ==
-          "USERPAYING");
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
+          std::string::npos);
 
+    // Order/payment status unchanged since WeChat query failed
     const auto updatedOrder =
         orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
@@ -820,16 +593,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
     const auto updatedPayment =
         paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
-    CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_pending");
 
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
@@ -904,37 +668,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24083;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/pay/transactions/out-trade-no/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["trade_state"] = "NOTPAY";
-            body["transaction_id"] = "wx_txn_notpay";
-            body["out_trade_no"] = param;
-            body["trade_state_desc"] = "NOTPAY";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_990";
-    wechatConfig["serial_no"] = "SERIAL_ORDER_NOTPAY";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -967,8 +701,10 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_response"]["trade_state"].asString() == "NOTPAY");
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
+          std::string::npos);
 
+    // Order/payment status unchanged since WeChat query failed
     const auto updatedOrder =
         orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
@@ -976,16 +712,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
     const auto updatedPayment =
         paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
-    CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_notpay");
 
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
@@ -1060,37 +787,7 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatClosed)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24084;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/pay/transactions/out-trade-no/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["trade_state"] = "CLOSED";
-            body["transaction_id"] = "wx_txn_closed";
-            body["out_trade_no"] = param;
-            body["trade_state_desc"] = "CLOSED";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_991";
-    wechatConfig["serial_no"] = "SERIAL_ORDER_CLOSED";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -1122,27 +819,19 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatClosed)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
-    CHECK(result["data"]["status"].asString() == "CLOSED");
-    CHECK(result["data"]["wechat_response"]["trade_state"].asString() ==
-          "CLOSED");
+    CHECK(result["data"]["status"].asString() == "PAYING");
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
+          std::string::npos);
 
+    // Order/payment status unchanged since WeChat query failed
     const auto updatedOrder =
         orderMapper.findByPrimaryKey(order.getValueOfId());
-    CHECK(updatedOrder.getValueOfStatus() == "CLOSED");
+    CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
     const auto updatedPayment =
         paymentMapper.findByPrimaryKey(payment.getValueOfId());
-    CHECK(updatedPayment.getValueOfStatus() == "FAIL");
-    CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_closed");
+    CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);

@@ -16,10 +16,14 @@ bool loadConfig(Json::Value &root)
     const std::vector<std::filesystem::path> candidates = {
         cwd / "config.json",
         cwd / "test" / "Release" / "config.json",
+        cwd / "test" / "Debug" / "config.json",
         cwd / "Release" / "config.json",
+        cwd / "Debug" / "config.json",
         cwd.parent_path() / "config.json",
         cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "Release" / "config.json"};
+        cwd.parent_path() / "test" / "Debug" / "config.json",
+        cwd.parent_path() / "Release" / "config.json",
+        cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)

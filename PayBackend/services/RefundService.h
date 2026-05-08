@@ -81,11 +81,15 @@ private:
     // Helper methods for refund processing
     void proceedRefund(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         RefundCallback&& callback
     );
 
     void proceedOrderFlow(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         const std::string& refundNo,
         const std::string& orderNo,
         const std::string& paymentNo,
@@ -96,6 +100,8 @@ private:
 
     void proceedWithAmountCheck(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         const std::string& refundNo,
         const std::string& orderNo,
         const std::string& paymentNo,
@@ -109,6 +115,8 @@ private:
 
     void proceedWithInProgressCheck(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         const std::string& refundNo,
         const std::string& orderNo,
         const std::string& paymentNo,
@@ -122,6 +130,8 @@ private:
 
     void proceedWithInsert(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         const std::string& refundNo,
         const std::string& orderNo,
         const std::string& paymentNo,
@@ -135,6 +145,8 @@ private:
 
     void proceedWithRefundInsert(
         const CreateRefundRequest& request,
+        const std::string& idempotencyKey,
+        const std::string& requestHash,
         const std::string& refundNo,
         const std::string& orderNo,
         const std::string& paymentNo,

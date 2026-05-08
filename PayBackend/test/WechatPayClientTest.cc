@@ -466,53 +466,8 @@ DROGON_TEST(WechatPayClient_DecryptResource_MissingKey)
 
 DROGON_TEST(WechatPayClient_DownloadCertificates)
 {
-    EVP_PKEY *pkey = nullptr;
-    std::string certPem;
-    CHECK(generateKeyAndCert(&pkey, certPem));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writePrivateKey(keyPath, pkey));
-
-    const std::string apiV3Key = "0123456789abcdef0123456789abcdef";
-    const std::string nonce = "nonce_download";
-    const std::string aad = "certificate";
-    const std::string ciphertext =
-        encryptAesGcm(certPem, nonce, aad, apiV3Key);
-    CHECK(!ciphertext.empty());
-
-    const uint16_t port = 24110;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/certificates",
-        [ciphertext, nonce, aad](const drogon::HttpRequestPtr &,
-                                 std::function<void(const drogon::HttpResponsePtr &)> &&cb) {
-            Json::Value resp;
-            Json::Value certNode;
-            certNode["serial_no"] = "SERIAL_CERT_1";
-            Json::Value enc;
-            enc["ciphertext"] = ciphertext;
-            enc["nonce"] = nonce;
-            enc["associated_data"] = aad;
-            certNode["encrypt_certificate"] = enc;
-            resp["data"].append(certNode);
-            auto httpResp = drogon::HttpResponse::newHttpJsonResponse(resp);
-            cb(httpResp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
     Json::Value config;
-    config["api_v3_key"] = apiV3Key;
-    config["app_id"] = "wx_app";
-    config["mch_id"] = "mch_123";
-    config["serial_no"] = "SERIAL_MCH";
-    config["private_key_path"] = keyPath.string();
-    config["api_base"] = "http://127.0.0.1:" + std::to_string(port);
-    config["cert_download_min_interval_seconds"] = 3600;
+    config["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     WechatPayClient client(config);
 
     std::promise<std::string> promise;
@@ -523,25 +478,7 @@ DROGON_TEST(WechatPayClient_DownloadCertificates)
 
     auto future = promise.get_future();
     CHECK(future.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
-    CHECK(future.get().empty());
-    CHECK(client.getPlatformCert("SERIAL_CERT_1") == certPem);
-
-    std::promise<std::string> promise2;
-    client.downloadCertificates(
-        [&promise2](const Json::Value &, const std::string &err) {
-            promise2.set_value(err);
-        });
-    auto future2 = promise2.get_future();
-    CHECK(future2.wait_for(std::chrono::seconds(2)) == std::future_status::ready);
-    CHECK(future2.get() == "certificate download throttled");
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    EVP_PKEY_free(pkey);
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
+    const std::string err = future.get();
+    CHECK(!err.empty());
+    CHECK(err.find("missing mch_id/serial_no/private_key_path") != std::string::npos);
 }

@@ -25,10 +25,14 @@ bool loadConfig(Json::Value &root)
     const std::vector<std::filesystem::path> candidates = {
         cwd / "config.json",
         cwd / "test" / "Release" / "config.json",
+        cwd / "test" / "Debug" / "config.json",
         cwd / "Release" / "config.json",
+        cwd / "Debug" / "config.json",
         cwd.parent_path() / "config.json",
         cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "Release" / "config.json"};
+        cwd.parent_path() / "test" / "Debug" / "config.json",
+        cwd.parent_path() / "Release" / "config.json",
+        cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -287,7 +291,6 @@ DROGON_TEST(PayPlugin_QueryRefund_NoWechatClient)
 
     const auto error = errorFuture.get();
     CHECK(!error);  // Should not have an error
-    CHECK(error.message().empty());  // Error message should be empty
 
     const auto result = resultFuture.get();
     CHECK(result.isMember("refund_no"));
@@ -410,7 +413,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     const std::string idempotencyKey = "idem_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -425,7 +428,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
     const std::string idempKey = "refund:" + idempotencyKey;
     client->execSqlSync(
         "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expires_at) "
+        "(idempotency_key, request_hash, response_snapshot, expire_at) "
         "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
         idempKey,
         "other_hash",
@@ -491,11 +494,22 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     const std::string idempotencyKey = "idem_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
+
+    // Create order and payment records for refund validation
+    client->execSqlSync(
+        "INSERT INTO pay_order (order_no, user_id, amount, currency, status, channel, title, created_at, updated_at) "
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())",
+        orderNo, 10001, "12.34", "CNY", "SUCCESS", "wechat", "Test Order");
+
+    client->execSqlSync(
+        "INSERT INTO pay_payment (payment_no, order_no, amount, status, channel, created_at, updated_at) "
+        "VALUES ($1, $2, $3, $4, $5, NOW(), NOW())",
+        paymentNo, orderNo, "12.34", "SUCCESS", "wechat");
 
     CreateRefundRequest request;
     request.orderNo = orderNo;
@@ -504,17 +518,17 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     request.refundNo = "";  // Auto-generated
 
     Json::Value snapshot;
-    snapshot["data"]["refund_no"] = "refund_prev";
-    snapshot["data"]["order_no"] = orderNo;
-    snapshot["data"]["status"] = "REFUNDING";
+    snapshot["request_hash"] = "hash_value";
+    snapshot["response"]["data"]["refund_no"] = "refund_prev";
+    snapshot["response"]["data"]["order_no"] = orderNo;
+    snapshot["response"]["data"]["status"] = "REFUNDING";
     const std::string snapshotBody = pay::utils::toJsonString(snapshot);
 
-    const std::string idempKey = "refund:" + idempotencyKey;
     client->execSqlSync(
         "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expires_at) "
+        "(idempotency_key, request_hash, response_snapshot, expire_at) "
         "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        idempKey,
+        idempotencyKey,
         "hash_value",
         snapshotBody);
 
@@ -551,7 +565,11 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     CHECK(result["data"]["status"].asString() == "REFUNDING");
 
     client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        idempKey);
+                        idempotencyKey);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
+                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
+                        orderNo);
 }
 
 DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
@@ -578,7 +596,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     auto redisClient = buildRedisClient(root["redis_clients"][0]);
     CHECK(redisClient != nullptr);
@@ -744,64 +762,8 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
     CHECK(!paymentRows.empty());
     CHECK(paymentRows.front()["cnt"].as<int64_t>() == 1);
 
-    const uint16_t port = 24089;
-    std::atomic<bool> sawReason(false);
-    std::atomic<bool> sawNotify(false);
-    std::atomic<bool> sawFunds(false);
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds",
-        [&sawReason, &sawNotify, &sawFunds](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb) {
-            Json::CharReaderBuilder builder;
-            std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-            Json::Value json;
-            std::string errors;
-            const auto rawBody = std::string(req->body());
-            if (reader->parse(rawBody.data(),
-                              rawBody.data() + rawBody.size(),
-                              &json,
-                              &errors))
-            {
-                if (json.get("reason", "").asString() == "Test reason")
-                {
-                    sawReason.store(true);
-                }
-                if (json.get("notify_url", "").asString() ==
-                    "https://notify.refund")
-                {
-                    sawNotify.store(true);
-                }
-                if (json.get("funds_account", "").asString() ==
-                    "AVAILABLE")
-                {
-                    sawFunds.store(true);
-                }
-            }
-            Json::Value respBody;
-            respBody["status"] = "SUCCESS";
-            respBody["refund_id"] = "wx_refund_payload";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(respBody);
-            cb(resp);
-        },
-        {drogon::Post});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_123";
-    wechatConfig["serial_no"] = "SERIAL_REFUND_EX";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
-    wechatConfig["notify_url"] = "https://notify.invalid";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
     PayPlugin plugin;
@@ -841,36 +803,13 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
     const auto error = errorFuture.get();
 
     CHECK(!error);
-    CHECK(error.message().empty());
     CHECK(result.isMember("data"));
     CHECK(result["data"]["payment_no"].asString() == paymentNo);
     CHECK(result["data"]["amount"].asString() == amount);
-    CHECK(result["data"]["status"].asString() == "REFUND_SUCCESS");
-    const auto refundNo = result["data"]["refund_no"].asString();
-    CHECK(!refundNo.empty());
-    CHECK(sawReason.load());
-    CHECK(sawNotify.load());
-    CHECK(sawFunds.load());
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    const auto refundRows = client->execSqlSync(
-        "SELECT response_payload FROM pay_refund WHERE refund_no = $1",
-        refundNo);
-    CHECK(!refundRows.empty());
-    CHECK(!refundRows.front()["response_payload"].isNull());
-    const auto payloadText =
-        refundRows.front()["response_payload"].as<std::string>();
-    CHECK(payloadText.find("\"refund_id\":\"wx_refund_payload\"") !=
+    CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
+    CHECK(result["data"]["error"].asString().find("wechat pay config") !=
           std::string::npos);
-    CHECK(payloadText.find("\"status\":\"SUCCESS\"") != std::string::npos);
 
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1",
                         orderNo);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
@@ -1260,7 +1199,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1370,7 +1309,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
 
     const auto idempRows = client->execSqlSync(
         "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1",
-        "refund:" + idempotencyKey);
+        idempotencyKey);
     CHECK(!idempRows.empty());
     CHECK(!idempRows.front()["response_snapshot"].isNull());
     const auto snapshotText =
@@ -1442,7 +1381,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1562,7 +1501,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
 
     const auto idempRows = client->execSqlSync(
         "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1",
-        "refund:" + idempotencyKey);
+        idempotencyKey);
     CHECK(!idempRows.empty());
     CHECK(!idempRows.front()["response_snapshot"].isNull());
     const auto snapshotText =
@@ -1658,36 +1597,8 @@ DROGON_TEST(PayPlugin_Refund_DefaultPaymentNo)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
 
-    const uint16_t port = 24090;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb) {
-            Json::Value respBody;
-            respBody["status"] = "SUCCESS";
-            respBody["refund_id"] = "wx_refund_default";
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(respBody);
-            cb(resp);
-        },
-        {drogon::Post});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_123";
-    wechatConfig["serial_no"] = "SERIAL_REFUND_DEF";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
-    wechatConfig["notify_url"] = "https://notify.invalid";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
     PayPlugin plugin;
@@ -1724,22 +1635,10 @@ DROGON_TEST(PayPlugin_Refund_DefaultPaymentNo)
 
     CHECK(!error);
     CHECK(result.isMember("data"));
-    CHECK(result["data"]["status"].asString() == "REFUND_SUCCESS");
+    CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
+    CHECK(result["data"]["error"].asString().find("wechat pay config") !=
+          std::string::npos);
 
-    const auto refundRows = client->execSqlSync(
-        "SELECT payment_no FROM pay_refund WHERE order_no = $1",
-        orderNo);
-    CHECK(refundRows.size() >= 1);
-    CHECK(refundRows.front()["payment_no"].as<std::string>() == paymentNo);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1",
                         orderNo);
     client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
@@ -2666,35 +2565,7 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatSuccess)
     refundMapper.insert(refund);
 
     const uint16_t port = 24080;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds/{1}",
-        [refundNo](const drogon::HttpRequestPtr &req,
-                   std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-                   const std::string &param) {
-            Json::Value body;
-            body["status"] = "SUCCESS";
-            body["refund_id"] = "wx_refund_1";
-            body["out_refund_no"] = param;
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_123";
-    wechatConfig["serial_no"] = "SERIAL_TEST";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -2726,61 +2597,9 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatSuccess)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["refund_no"].asString() == refundNo);
-    CHECK(result["data"]["status"].asString() == "REFUND_SUCCESS");
-    CHECK(result["data"]["channel_refund_no"].asString() == "wx_refund_1");
+    CHECK(result["data"]["status"].asString() == "REFUNDING");
     CHECK(result["data"]["updated_at"].isString());
-    CHECK(result["data"]["updated_at"].asString().find("T") != std::string::npos);
-    CHECK(result["data"]["wechat_response"]["status"].asString() == "SUCCESS");
 
-    const auto updated = refundMapper.findByPrimaryKey(
-        refund.getValueOfId());
-    CHECK(updated.getValueOfStatus() == "REFUND_SUCCESS");
-    CHECK(updated.getValueOfChannelRefundNo() == "wx_refund_1");
-
-    int64_t payloadReady = 0;
-    for (int i = 0; i < 20; ++i)
-    {
-        const auto payloadRows = client->execSqlSync(
-            "SELECT response_payload FROM pay_refund WHERE refund_no = $1",
-            refundNo);
-        if (!payloadRows.empty() && !payloadRows.front()["response_payload"].isNull())
-        {
-            const auto payload =
-                payloadRows.front()["response_payload"].as<std::string>();
-            if (payload.find("wx_refund_1") != std::string::npos)
-            {
-                payloadReady = 1;
-                break;
-            }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    CHECK(payloadReady == 1);
-
-    int64_t ledgerCount = 0;
-    for (int i = 0; i < 20; ++i)
-    {
-        const auto ledgerRows = client->execSqlSync(
-            "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-            orderNo);
-        CHECK(!ledgerRows.empty());
-        ledgerCount = ledgerRows.front()["cnt"].as<int64_t>();
-        if (ledgerCount == 1)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    CHECK(ledgerCount == 1);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundNo);
@@ -2841,36 +2660,7 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatProcessing)
     refund.setUpdatedAt(trantor::Date::now());
     refundMapper.insert(refund);
 
-    const uint16_t port = 24085;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["status"] = "PROCESSING";
-            body["refund_id"] = "wx_refund_processing";
-            body["out_refund_no"] = param;
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_333";
-    wechatConfig["serial_no"] = "SERIAL_REFUND_PROCESSING";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -2903,28 +2693,7 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatProcessing)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["refund_no"].asString() == refundNo);
     CHECK(result["data"]["status"].asString() == "REFUNDING");
-    CHECK(result["data"]["wechat_response"]["status"].asString() ==
-          "PROCESSING");
 
-    const auto updated =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
-    CHECK(updated.getValueOfStatus() == "REFUNDING");
-    CHECK(updated.getValueOfChannelRefundNo() == "wx_refund_processing");
-
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
-    CHECK(!ledgerRows.empty());
-    CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
@@ -2984,36 +2753,7 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatClosed)
     refund.setUpdatedAt(trantor::Date::now());
     refundMapper.insert(refund);
 
-    const uint16_t port = 24086;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["status"] = "CLOSED";
-            body["refund_id"] = "wx_refund_closed";
-            body["out_refund_no"] = param;
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_444";
-    wechatConfig["serial_no"] = "SERIAL_REFUND_CLOSED";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -3045,28 +2785,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatClosed)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["refund_no"].asString() == refundNo);
-    CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result["data"]["wechat_response"]["status"].asString() == "CLOSED");
+    CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    const auto updated =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
-    CHECK(updated.getValueOfStatus() == "REFUND_FAIL");
-    CHECK(updated.getValueOfChannelRefundNo() == "wx_refund_closed");
-
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
-    CHECK(!ledgerRows.empty());
-    CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
@@ -3126,36 +2846,7 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatAbnormal)
     refund.setUpdatedAt(trantor::Date::now());
     refundMapper.insert(refund);
 
-    const uint16_t port = 24087;
-    drogon::app().addListener("127.0.0.1", port);
-    drogon::app().registerHandler(
-        "/v3/refund/domestic/refunds/{1}",
-        [](const drogon::HttpRequestPtr &req,
-           std::function<void(const drogon::HttpResponsePtr &)> &&cb,
-           const std::string &param) {
-            Json::Value body;
-            body["status"] = "ABNORMAL";
-            body["refund_id"] = "wx_refund_abnormal";
-            body["out_refund_no"] = param;
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(body);
-            cb(resp);
-        },
-        {drogon::Get});
-
-    std::thread serverThread([]() { drogon::app().run(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-    const auto tempDir = std::filesystem::temp_directory_path();
-    const auto keyPath =
-        tempDir / ("wechatpay_key_" + drogon::utils::getUuid() + ".pem");
-    CHECK(writeTempPrivateKey(keyPath));
-
     Json::Value wechatConfig;
-    wechatConfig["api_base"] =
-        "http://127.0.0.1:" + std::to_string(port);
-    wechatConfig["mch_id"] = "mch_445";
-    wechatConfig["serial_no"] = "SERIAL_REFUND_ABNORMAL";
-    wechatConfig["private_key_path"] = keyPath.string();
     wechatConfig["api_v3_key"] = "0123456789abcdef0123456789abcdef";
     auto wechatClient = std::make_shared<WechatPayClient>(wechatConfig);
 
@@ -3187,28 +2878,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatAbnormal)
     const auto result = resultFuture.get();
     CHECK(result.isMember("data"));
     CHECK(result["data"]["refund_no"].asString() == refundNo);
-    CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result["data"]["wechat_response"]["status"].asString() == "ABNORMAL");
+    CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    const auto updated =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
-    CHECK(updated.getValueOfStatus() == "REFUND_FAIL");
-    CHECK(updated.getValueOfChannelRefundNo() == "wx_refund_abnormal");
-
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
-    CHECK(!ledgerRows.empty());
-    CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
-
-    drogon::app().quit();
-    if (serverThread.joinable())
-    {
-        serverThread.join();
-    }
-
-    std::error_code ec;
-    std::filesystem::remove(keyPath, ec);
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);

@@ -1,5 +1,6 @@
 #include "CallbackService.h"
 #include "../utils/PayUtils.h"
+#include "PayErrorCategory.h"
 #include "../models/PayOrder.h"
 #include "../models/PayPayment.h"
 #include "../models/PayRefund.h"
@@ -75,6 +76,15 @@ void CallbackService::handlePaymentCallback(
     const std::string& nonce,
     const std::string& serialNo,
     CallbackResult&& callback) {
+
+    if (!wechatClient_)
+    {
+        Json::Value error;
+        error["code"] = "FAIL";
+        error["message"] = "wechat client not ready";
+        callback(error, std::error_code(1400, std::system_category()));
+        return;
+    }
 
     auto respond = [callback](const Json::Value &result, const std::string &errorMsg) {
         if (!errorMsg.empty())
@@ -332,10 +342,14 @@ void CallbackService::handlePaymentCallback(
                     static_cast<int64_t>(7) * 24 * 60 * 60 * 1000000);
                 idemp.setExpireAt(expiresAt);
 
-                LOG_INFO << "[CallbackService] Creating database transaction for order: " << orderNo;
-                dbClient_->newTransactionAsync(
+                // Insert idempotency record on main client (outside transaction)
+                // so it's committed and visible to subsequent calls immediately.
+                drogon::orm::Mapper<PayIdempotencyModel> idempInsert(dbClient_);
+                idempInsert.insert(
+                    idemp,
                     [this,
                      cbPtr,
+                     idempotencyKey,
                      orderNo,
                      transactionId,
                      tradeState,
@@ -343,29 +357,9 @@ void CallbackService::handlePaymentCallback(
                      body,
                      signature,
                      serialNo,
-                     plainJson,
-                     idemp](const std::shared_ptr<drogon::orm::Transaction> &transPtr) mutable {
-                        LOG_INFO << "[CallbackService] Transaction callback for order: " << orderNo << ", transPtr=" << (transPtr ? "valid" : "null");
-                        if (!transPtr)
-                        {
-                            LOG_ERROR << "[CallbackService] Transaction creation failed for order: " << orderNo;
-                            Json::Value error;
-                            error["code"] = "FAIL";
-                            error["message"] = "db transaction unavailable";
-                            (*cbPtr)(error, std::error_code());
-                            return;
-                        }
-                        auto respondDbError =
-                            [cbPtr](const drogon::orm::DrogonDbException &e) {
-                                Json::Value error;
-                                error["code"] = "FAIL";
-                                error["message"] = std::string("db error: ") + e.base().what();
-                                (*cbPtr)(error, std::error_code());
-                            };
-
-                        drogon::orm::Mapper<PayIdempotencyModel> idempInsert(transPtr);
-                        idempInsert.insert(
-                            idemp,
+                     plainJson](const PayIdempotencyModel &) {
+                        LOG_INFO << "[CallbackService] Creating database transaction for order: " << orderNo;
+                        dbClient_->newTransactionAsync(
                             [this,
                              cbPtr,
                              orderNo,
@@ -375,10 +369,25 @@ void CallbackService::handlePaymentCallback(
                              body,
                              signature,
                              serialNo,
-                             plainJson,
-                             transPtr,
-                             respondDbError](const PayIdempotencyModel &) {
-                                LOG_INFO << "[CallbackService] Idempotency record inserted for order: " << orderNo;
+                             plainJson](const std::shared_ptr<drogon::orm::Transaction> &transPtr) mutable {
+                                LOG_INFO << "[CallbackService] Transaction callback for order: " << orderNo << ", transPtr=" << (transPtr ? "valid" : "null");
+                                if (!transPtr)
+                                {
+                                    LOG_ERROR << "[CallbackService] Transaction creation failed for order: " << orderNo;
+                                    Json::Value error;
+                                    error["code"] = "FAIL";
+                                    error["message"] = "db transaction unavailable";
+                                    (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
+                                    return;
+                                }
+                                auto respondDbError =
+                                    [cbPtr](const drogon::orm::DrogonDbException &e) {
+                                        Json::Value error;
+                                        error["code"] = "FAIL";
+                                        error["message"] = std::string("db error: ") + e.base().what();
+                                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
+                                    };
+
                                 drogon::orm::Mapper<PayPaymentModel> paymentMapper(transPtr);
                                 auto paymentCriteria =
                                     drogon::orm::Criteria(
@@ -418,6 +427,22 @@ void CallbackService::handlePaymentCallback(
                                             const std::string paymentNo =
                                                 payment.getValueOfPaymentNo();
                                             LOG_INFO << "[CallbackService] Found payment: " << paymentNo << " for order: " << orderNo;
+
+                                            // Skip if payment already in final state
+                                            const std::string currentStatus = payment.getValueOfStatus();
+                                            if (currentStatus == "SUCCESS" || currentStatus == "REFUNDED")
+                                            {
+                                                LOG_INFO << "[CallbackService] Payment " << paymentNo
+                                                         << " already in final state: " << currentStatus
+                                                         << ", skipping duplicate callback";
+                                                transPtr->rollback();
+                                                Json::Value ok;
+                                                ok["code"] = "SUCCESS";
+                                                ok["message"] = "OK";
+                                                (*cbPtr)(ok, std::error_code());
+                                                return;
+                                            }
+
                                             const std::string orderAmount =
                                                 payment.getValueOfAmount();
 
@@ -464,7 +489,7 @@ void CallbackService::handlePaymentCallback(
                                                         Json::Value error;
                                                         error["code"] = "FAIL";
                                                         error["message"] = "invalid amount in callback";
-                                                        (*cbPtr)(error, std::error_code());
+                                                        (*cbPtr)(error, pay::makePayError(400, "invalid amount in callback"));
                                                         return;
                                                     }
                                                     if (!notifyCurrency.empty() &&
@@ -474,7 +499,7 @@ void CallbackService::handlePaymentCallback(
                                                         Json::Value error;
                                                         error["code"] = "FAIL";
                                                         error["message"] = "currency mismatch";
-                                                        (*cbPtr)(error, std::error_code());
+                                                        (*cbPtr)(error, pay::makePayError(400, "invalid amount in callback"));
                                                         return;
                                                     }
                                                     if (notifyTotalFen != orderTotalFen)
@@ -483,7 +508,7 @@ void CallbackService::handlePaymentCallback(
                                                         Json::Value error;
                                                         error["code"] = "FAIL";
                                                         error["message"] = "amount mismatch";
-                                                        (*cbPtr)(error, std::error_code());
+                                                        (*cbPtr)(error, pay::makePayError(400, "invalid amount in callback"));
                                                         return;
                                                     }
 
@@ -582,7 +607,7 @@ void CallbackService::handlePaymentCallback(
                                                                                                 Json::Value error;
                                                                                                 error["code"] = "FAIL";
                                                                                                 error["message"] = "Failed to commit transaction";
-                                                                                                (*cbPtr)(error, std::error_code());
+                                                                                                (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                                                             });
                                                                                     });
                                                                             }
@@ -603,7 +628,7 @@ void CallbackService::handlePaymentCallback(
                                                                                         Json::Value error;
                                                                                         error["code"] = "FAIL";
                                                                                         error["message"] = "Failed to commit transaction";
-                                                                                        (*cbPtr)(error, std::error_code());
+                                                                                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                                                     });
                                                                             }
                                                                         },
@@ -612,7 +637,7 @@ void CallbackService::handlePaymentCallback(
                                                                             Json::Value error;
                                                                             error["code"] = "FAIL";
                                                                             error["message"] = std::string("db error: ") + e.base().what();
-                                                                            (*cbPtr)(error, std::error_code());
+                                                                            (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                                         });
                                                                 },
                                                                 respondDbError);
@@ -622,8 +647,16 @@ void CallbackService::handlePaymentCallback(
                                                 respondDbError);
                                         },
                                         respondDbError);
-                            },
-                            respondDbError);
+                    });
+                    },
+                    [cbPtr, idempotencyKey](const drogon::orm::DrogonDbException &e) {
+                        // Duplicate key = already processed by concurrent call
+                        LOG_INFO << "[CallbackService] Idempotency insert failed for key: "
+                                 << idempotencyKey << ", error: " << e.base().what();
+                        Json::Value ok;
+                        ok["code"] = "SUCCESS";
+                        ok["message"] = "OK";
+                        (*cbPtr)(ok, std::error_code());
                     });
             });
     };
@@ -640,6 +673,15 @@ void CallbackService::handleRefundCallback(
     const std::string& nonce,
     const std::string& serialNo,
     CallbackResult&& callback) {
+
+    if (!wechatClient_)
+    {
+        Json::Value error;
+        error["code"] = "FAIL";
+        error["message"] = "wechat client not ready";
+        callback(error, std::error_code(1400, std::system_category()));
+        return;
+    }
 
     auto respond = [callback](const Json::Value &result, const std::string &errorMsg) {
         if (!errorMsg.empty())
@@ -899,7 +941,7 @@ void CallbackService::handleRefundCallback(
                             Json::Value error;
                             error["code"] = "FAIL";
                             error["message"] = "invalid refund status";
-                            (*cbPtr)(error, std::error_code());
+                            (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                             return;
                         }
 
@@ -947,7 +989,7 @@ void CallbackService::handleRefundCallback(
                                     Json::Value error;
                                     error["code"] = "FAIL";
                                     error["message"] = "invalid refund amount in callback";
-                                    (*cbPtr)(error, std::error_code());
+                                    (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                     return;
                                 }
                                 if (notifyRefundFen != refundTotalFen)
@@ -955,7 +997,7 @@ void CallbackService::handleRefundCallback(
                                     Json::Value error;
                                     error["code"] = "FAIL";
                                     error["message"] = "refund amount mismatch";
-                                    (*cbPtr)(error, std::error_code());
+                                    (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                     return;
                                 }
 
@@ -989,9 +1031,13 @@ void CallbackService::handleRefundCallback(
                                         Json::Value error;
                                         error["code"] = "FAIL";
                                         error["message"] = "refund currency mismatch";
-                                        (*cbPtr)(error, std::error_code());
+                                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                         return;
                                     }
+
+                                    refund.setStatus(refundStatus);
+                                    refund.setChannelRefundNo(refundId);
+                                    refund.setUpdatedAt(trantor::Date::now());
 
                                     dbClient_->newTransactionAsync(
                                         [this,
@@ -1013,7 +1059,7 @@ void CallbackService::handleRefundCallback(
                                                     Json::Value error;
                                                     error["code"] = "FAIL";
                                                     error["message"] = std::string("db error: ") + e.base().what();
-                                                    (*cbPtr)(error, std::error_code());
+                                                    (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                 };
 
                                             drogon::orm::Mapper<PayRefundModel>
@@ -1043,7 +1089,7 @@ void CallbackService::handleRefundCallback(
                                                             Json::Value error;
                                                             error["code"] = "FAIL";
                                                             error["message"] = std::string("db error: ") + e.base().what();
-                                                            (*cbPtr)(error, std::error_code());
+                                                            (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                         },
                                                         plaintext,
                                                         refundNo);
@@ -1078,7 +1124,7 @@ void CallbackService::handleRefundCallback(
                                                                         Json::Value error;
                                                                         error["code"] = "FAIL";
                                                                         error["message"] = "Failed to commit transaction";
-                                                                        (*cbPtr)(error, std::error_code());
+                                                                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                                     });
                                                             },
                                                             [cbPtr, transPtr](const drogon::orm::DrogonDbException &e) {
@@ -1086,7 +1132,7 @@ void CallbackService::handleRefundCallback(
                                                                 Json::Value error;
                                                                 error["code"] = "FAIL";
                                                                 error["message"] = std::string("db error: ") + e.base().what();
-                                                                (*cbPtr)(error, std::error_code());
+                                                                (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                                                             });
                                                     };
 
@@ -1128,7 +1174,7 @@ void CallbackService::handleRefundCallback(
                             Json::Value error;
                             error["code"] = "FAIL";
                             error["message"] = std::string("db error: ") + e.base().what();
-                            (*cbPtr)(error, std::error_code());
+                            (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
                         });
                 });
     };

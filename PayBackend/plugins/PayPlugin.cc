@@ -127,6 +127,11 @@ std::shared_ptr<RefundService> PayPlugin::refundService()
 
 std::shared_ptr<CallbackService> PayPlugin::callbackService()
 {
+    if (!callbackService_)
+    {
+        callbackService_ = std::make_shared<CallbackService>(
+            wechatClient_, dbClient_);
+    }
     return callbackService_;
 }
 

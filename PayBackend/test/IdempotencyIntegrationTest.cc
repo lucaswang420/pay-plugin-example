@@ -24,10 +24,14 @@ bool loadConfig(Json::Value &root)
     const std::vector<std::filesystem::path> candidates = {
         cwd / "config.json",
         cwd / "test" / "Release" / "config.json",
+        cwd / "test" / "Debug" / "config.json",
         cwd / "Release" / "config.json",
+        cwd / "Debug" / "config.json",
         cwd.parent_path() / "config.json",
         cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "Release" / "config.json"};
+        cwd.parent_path() / "test" / "Debug" / "config.json",
+        cwd.parent_path() / "Release" / "config.json",
+        cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -95,13 +99,13 @@ DROGON_TEST(PayIdempotency_DbUniqueKey)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     const std::string key = "test_" + drogon::utils::getUuid();
 
     client->execSqlSync(
         "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
-        "response_snapshot, expires_at) VALUES ($1, $2, $3, NOW() + "
+        "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
         "INTERVAL '1 day')",
         key,
         "hash",
@@ -112,7 +116,7 @@ DROGON_TEST(PayIdempotency_DbUniqueKey)
     {
         client->execSqlSync(
             "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
-            "response_snapshot, expires_at) VALUES ($1, $2, $3, NOW() + "
+            "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
             "INTERVAL '1 day')",
             key,
             "hash2",
@@ -228,7 +232,7 @@ DROGON_TEST(PayIdempotency_OrmRoundTrip)
         "request_hash TEXT NOT NULL,"
         "response_snapshot TEXT,"
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expires_at TIMESTAMPTZ NOT NULL)");
+        "expire_at TIMESTAMPTZ NOT NULL)");
 
     using PayIdempotency = drogon_model::pay_test::PayIdempotency;
     drogon::orm::Mapper<PayIdempotency> mapper(client);
@@ -269,9 +273,36 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
+        "CREATE TABLE IF NOT EXISTS pay_order ("
+        "id BIGSERIAL PRIMARY KEY,"
+        "order_no VARCHAR(64) UNIQUE NOT NULL,"
+        "user_id BIGINT NOT NULL,"
+        "amount VARCHAR(32) NOT NULL,"
+        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+        "title VARCHAR(512),"
+        "expire_at TIMESTAMP,"
+        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+
+    client->execSqlSync(
+        "CREATE TABLE IF NOT EXISTS pay_payment ("
+        "id BIGSERIAL PRIMARY KEY,"
+        "order_no VARCHAR(64) NOT NULL REFERENCES pay_order(order_no),"
+        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+        "status VARCHAR(24) NOT NULL,"
+        "amount DECIMAL(18,2) NOT NULL,"
+        "request_payload TEXT,"
+        "response_payload TEXT,"
+        "channel_trade_no VARCHAR(64),"
+        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+
+    client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_callback ("
         "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
+        "payment_no VARCHAR(64) NOT NULL REFERENCES pay_payment(payment_no),"
         "raw_body TEXT NOT NULL,"
         "signature VARCHAR(512),"
         "serial_no VARCHAR(64),"
@@ -279,11 +310,39 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
         "processed BOOLEAN NOT NULL DEFAULT FALSE,"
         "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
 
+    using PayOrder = drogon_model::pay_test::PayOrder;
+    drogon::orm::Mapper<PayOrder> orderMapper(client);
+    const std::string orderNo = "order_" + drogon::utils::getUuid();
+    PayOrder orderRow;
+    orderRow.setOrderNo(orderNo);
+    orderRow.setUserId(12345);
+    orderRow.setAmount("10.00");
+    orderRow.setCurrency("CNY");
+    orderRow.setStatus("SUCCESS");
+    orderRow.setChannel("WECHAT");
+    orderRow.setTitle("Test order");
+    orderMapper.insert(orderRow);
+
+    using PayPayment = drogon_model::pay_test::PayPayment;
+    drogon::orm::Mapper<PayPayment> paymentMapper(client);
+
+    PayPayment paymentRow;
+    const std::string paymentNo = "pay_" + drogon::utils::getUuid();
+    paymentRow.setPaymentNo(paymentNo);
+    paymentRow.setOrderNo(orderNo);
+    paymentRow.setStatus("SUCCESS");
+    paymentRow.setAmount("10.00");
+    paymentRow.setRequestPayload("{}");
+    paymentRow.setResponsePayload("{}");
+
+    paymentMapper.insert(paymentRow);
+    CHECK(paymentRow.getValueOfId() > 0);
+
     using PayCallback = drogon_model::pay_test::PayCallback;
     drogon::orm::Mapper<PayCallback> mapper(client);
 
     PayCallback row;
-    row.setPaymentNo("pay_" + drogon::utils::getUuid());
+    row.setPaymentNo(paymentNo);  // ✅ 使用已存在的 payment_no
     row.setRawBody("{\"resource\":{}}");
     row.setSignature("sig");
     row.setSerialNo("serial");
@@ -304,6 +363,8 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
     CHECK(fetched.getValueOfProcessed() == row.getValueOfProcessed());
 
     mapper.deleteByPrimaryKey(id);
+    paymentMapper.deleteByPrimaryKey(paymentRow.getValueOfId());
+    orderMapper.deleteByPrimaryKey(orderRow.getPrimaryKey());
 }
 
 DROGON_TEST(PayPayment_OrmRoundTrip)

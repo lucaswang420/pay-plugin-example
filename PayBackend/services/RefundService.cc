@@ -169,14 +169,17 @@ void RefundService::createRefund(
     auto sharedCb = std::make_shared<RefundCallback>(std::move(callback));
 
     // Wrap callback to save response to idempotency cache before calling user callback
-    auto wrappedCallback = [this, idempotencyKey, sharedCb](const Json::Value& response, const std::error_code& error) {
+    auto wrappedCallback = [this, idempotencyKey, requestHash, sharedCb](const Json::Value& response, const std::error_code& error) {
+        LOG_INFO << "[RefundService] wrappedCallback: key=" << idempotencyKey << ", error=" << error.value() << ", has_data=" << response.isMember("data");
         if (!idempotencyKey.empty() && !error && response.isMember("data")) {
+            LOG_INFO << "[RefundService] Saving idempotency snapshot for key=" << idempotencyKey;
             // Save successful response to idempotency cache
             idempotencyService_->updateResult(
                 idempotencyKey,
+                requestHash,
                 response,
                 []() {
-                    LOG_DEBUG << "[RefundService] Idempotency snapshot saved";
+                    LOG_INFO << "[RefundService] Idempotency snapshot saved successfully";
                 });
         }
         // Call user callback
@@ -189,7 +192,7 @@ void RefundService::createRefund(
     // Skip idempotency check for empty key (used in tests)
     if (idempotencyKey.empty()) {
         LOG_DEBUG << "[RefundService] Empty idempotency key, skipping check";
-        proceedRefund(request, std::move(*wrappedSharedCb));
+        proceedRefund(request, idempotencyKey, requestHash, std::move(*wrappedSharedCb));
         return;
     }
 
@@ -204,7 +207,7 @@ void RefundService::createRefund(
             req["reason"] = request.reason;
             return req;
         }(),
-        [this, request, wrappedSharedCb](bool canProceed, const Json::Value& cachedResult) mutable {
+        [this, request, idempotencyKey, requestHash, wrappedSharedCb](bool canProceed, const Json::Value& cachedResult) mutable {
             if (!canProceed) {
                 // Idempotency conflict
                 if (*wrappedSharedCb) {
@@ -225,13 +228,15 @@ void RefundService::createRefund(
             }
 
             // Proceed with refund creation
-            proceedRefund(request, std::move(*wrappedSharedCb));
+            proceedRefund(request, idempotencyKey, requestHash, std::move(*wrappedSharedCb));
         }
     );
 }
 
 void RefundService::proceedRefund(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     RefundCallback&& callback) {
 
     // Wrap callback in shared_ptr to prevent it from being destroyed during async operations
@@ -256,7 +261,7 @@ void RefundService::proceedRefund(
             .limit(1)
             .findBy(
                 payCriteria,
-                [this, request, refundNo, orderNo, amount, reason, sharedCb](
+                [this, request, idempotencyKey, requestHash, refundNo, orderNo, amount, reason, sharedCb](
                     const std::vector<PayPaymentModel> &rows) mutable {
                     if (rows.empty()) {
                         if (*sharedCb) {
@@ -269,7 +274,7 @@ void RefundService::proceedRefund(
                     }
                     CreateRefundRequest newRequest = request;
                     newRequest.paymentNo = rows.front().getValueOfPaymentNo();
-                    proceedRefund(newRequest, std::move(*sharedCb));
+                    proceedRefund(newRequest, idempotencyKey, requestHash, std::move(*sharedCb));
                 },
                 [sharedCb](const DrogonDbException &e) mutable {
                     if (*sharedCb) {
@@ -293,7 +298,7 @@ void RefundService::proceedRefund(
                 orderNo);
     paymentValidateMapper.findOne(
         paymentCriteria,
-        [this, request, refundNo, orderNo, paymentNo, amount, reason, sharedCb](
+        [this, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, reason, sharedCb](
             const PayPaymentModel &payment) mutable {
             if (payment.getValueOfStatus() != "SUCCESS") {
                 if (*sharedCb) {
@@ -304,7 +309,7 @@ void RefundService::proceedRefund(
                 }
                 return;
             }
-            proceedOrderFlow(request, refundNo, orderNo, paymentNo, amount, reason, std::move(*sharedCb));
+            proceedOrderFlow(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, reason, std::move(*sharedCb));
         },
         [sharedCb](const DrogonDbException &e) mutable {
             if (*sharedCb) {
@@ -318,6 +323,8 @@ void RefundService::proceedRefund(
 
 void RefundService::proceedOrderFlow(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     const std::string& refundNo,
     const std::string& orderNo,
     const std::string& paymentNo,
@@ -334,7 +341,7 @@ void RefundService::proceedOrderFlow(
                             orderNo);
     orderMapper.findOne(
         criteria,
-        [this, request, refundNo, orderNo, paymentNo, amount, reason, sharedCb](
+        [this, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, reason, sharedCb](
             const PayOrderModel &order) mutable {
             const std::string orderAmount = order.getValueOfAmount();
             const std::string currency = order.getValueOfCurrency();
@@ -372,7 +379,7 @@ void RefundService::proceedOrderFlow(
                 return;
             }
 
-            proceedWithAmountCheck(request, refundNo, orderNo, paymentNo, amount,
+            proceedWithAmountCheck(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount,
                                   refundFen, totalFen, currency, reason, std::move(*sharedCb));
         },
         [sharedCb](const DrogonDbException &e) mutable {
@@ -387,6 +394,8 @@ void RefundService::proceedOrderFlow(
 
 void RefundService::proceedWithAmountCheck(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     const std::string& refundNo,
     const std::string& orderNo,
     const std::string& paymentNo,
@@ -406,7 +415,7 @@ void RefundService::proceedWithAmountCheck(
         "FROM pay_refund "
         "WHERE order_no = $1 AND payment_no = $2 AND amount = $3 AND status = $4 "
         "ORDER BY updated_at DESC LIMIT 1",
-        [this, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
+        [this, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
          currency, reason, sharedCb](const Result &r) mutable {
             if (!r.empty()) {
                 if (*sharedCb) {
@@ -428,7 +437,7 @@ void RefundService::proceedWithAmountCheck(
                 }
                 return;
             }
-            proceedWithInProgressCheck(request, refundNo, orderNo, paymentNo, amount,
+            proceedWithInProgressCheck(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount,
                                        refundFen, totalFen, currency, reason, std::move(*sharedCb));
         },
         [sharedCb](const DrogonDbException &e) {
@@ -444,6 +453,8 @@ void RefundService::proceedWithAmountCheck(
 
 void RefundService::proceedWithInProgressCheck(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     const std::string& refundNo,
     const std::string& orderNo,
     const std::string& paymentNo,
@@ -462,7 +473,7 @@ void RefundService::proceedWithInProgressCheck(
         "SELECT COUNT(*) AS cnt FROM pay_refund "
         "WHERE order_no = $1 AND payment_no = $2 AND amount = $3 "
         "AND status IN ($4, $5)",
-        [this, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
+        [this, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
          currency, reason, sharedCb](const Result &r) mutable {
             if (!r.empty() && r.front()["cnt"].as<int64_t>() > 0) {
                 if (*sharedCb) {
@@ -473,7 +484,7 @@ void RefundService::proceedWithInProgressCheck(
                 }
                 return;
             }
-            proceedWithInsert(request, refundNo, orderNo, paymentNo, amount,
+            proceedWithInsert(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount,
                              refundFen, totalFen, currency, reason, std::move(*sharedCb));
         },
         [sharedCb](const DrogonDbException &e) {
@@ -489,6 +500,8 @@ void RefundService::proceedWithInProgressCheck(
 
 void RefundService::proceedWithInsert(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     const std::string& refundNo,
     const std::string& orderNo,
     const std::string& paymentNo,
@@ -507,10 +520,10 @@ void RefundService::proceedWithInsert(
         "SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) AS sum_amount "
         "FROM pay_refund WHERE order_no = $1 "
         "AND status IN ($2, $3, $4)",
-        [this, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
+        [this, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
          currency, reason, sharedCb](const Result &r) mutable {
             if (r.empty()) {
-                proceedWithRefundInsert(request, refundNo, orderNo, paymentNo, amount,
+                proceedWithRefundInsert(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount,
                                        refundFen, totalFen, currency, reason, std::move(*sharedCb));
                 return;
             }
@@ -534,7 +547,7 @@ void RefundService::proceedWithInsert(
                 }
                 return;
             }
-            proceedWithRefundInsert(request, refundNo, orderNo, paymentNo, amount,
+            proceedWithRefundInsert(request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount,
                                    refundFen, totalFen, currency, reason, std::move(*sharedCb));
         },
         [sharedCb](const DrogonDbException &e) {
@@ -550,6 +563,8 @@ void RefundService::proceedWithInsert(
 
 void RefundService::proceedWithRefundInsert(
     const CreateRefundRequest& request,
+    const std::string& idempotencyKey,
+    const std::string& requestHash,
     const std::string& refundNo,
     const std::string& orderNo,
     const std::string& paymentNo,
@@ -568,7 +583,7 @@ void RefundService::proceedWithRefundInsert(
     auto orderCriteria = Criteria(PayOrderModel::Cols::_order_no, CompareOperator::EQ, orderNo);
     orderMapper.findOne(
         orderCriteria,
-        [this, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen, currency, reason, sharedCb](
+        [this, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen, currency, reason, idempotencyKey, requestHash, sharedCb](
             const PayOrderModel& order) mutable {
 
             std::string channel = order.getValueOfChannel();
@@ -589,7 +604,7 @@ void RefundService::proceedWithRefundInsert(
 
             refundMapper.insert(
                 refund,
-                [this, channel, request, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
+                [this, channel, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
                  currency, reason, sharedCb](const PayRefundModel &) mutable {
 
                     // Route to appropriate payment client based on channel
