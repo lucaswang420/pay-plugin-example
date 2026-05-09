@@ -11,9 +11,15 @@ REM 3. Rebuild project
 REM 4. Run tests
 REM ========================================
 
+REM Parse command line arguments
+set BUILD_MODE=-release
+if "%1"=="-debug" set BUILD_MODE=-debug
+if "%1"=="-release" set BUILD_MODE=-release
+
 echo.
 echo ========================================
 echo One-Click Build and Test
+echo Build Mode: %BUILD_MODE:-=%
 echo ========================================
 echo.
 
@@ -58,9 +64,9 @@ REM ========================================
 REM Step 3: Rebuild Project
 REM ========================================
 echo ========================================
-echo Step 3: Rebuilding project
+echo Step 3: Rebuilding project (%BUILD_MODE:-=% mode)
 echo ========================================
-call "%SCRIPT_DIR%build.bat"
+call "%SCRIPT_DIR%build.bat" %BUILD_MODE%
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [FAILED] Build failed
@@ -73,9 +79,9 @@ REM ========================================
 REM Step 4: Run Tests
 REM ========================================
 echo ========================================
-echo Step 4: Running tests
+echo Step 4: Running tests (%BUILD_MODE:-=% mode)
 echo ========================================
-call "%SCRIPT_DIR%test.bat"
+call "%SCRIPT_DIR%test.bat" %BUILD_MODE%
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [FAILED] Tests failed
@@ -92,13 +98,14 @@ echo ALL STEPS COMPLETED SUCCESSFULLY!
 echo ========================================
 echo.
 echo Summary:
+echo   Build Mode:                      %BUILD_MODE:-=%
 echo   [1/4] Database initialization    - PASS
 echo   [2/4] ORM model generation       - PASS
 echo   [3/4] Project build              - PASS
 echo   [4/4] Unit tests                 - PASS
 echo.
 echo ========================================
-echo Build and Test Cycle Complete
+echo Build and Test Cycle Complete (%BUILD_MODE:-=% mode)
 echo ========================================
 goto cleanup_and_exit
 

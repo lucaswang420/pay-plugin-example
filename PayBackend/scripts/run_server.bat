@@ -2,8 +2,14 @@
 setlocal enabledelayedexpansion
 REM Run script for Pay Plugin Backend
 
+REM Parse command line arguments
+set BUILD_MODE=Release
+if "%1"=="-debug" set BUILD_MODE=Debug
+if "%1"=="-release" set BUILD_MODE=Release
+
 echo ========================================
 echo Starting Pay Plugin Backend
+echo Build Mode: %BUILD_MODE%
 echo ========================================
 
 REM Change to PayBackend directory
@@ -26,23 +32,16 @@ if exist conanrun.bat (
     call conanrun.bat
 )
 
-REM Check for debug build first
-if exist Debug\PayServer.exe (
-    echo Starting server (Debug build)...
-    Debug\PayServer.exe
-    goto :end
-)
-
-REM Check for release build
-if not exist Release\PayServer.exe (
-    echo Error: PayServer.exe not found in Debug or Release directories!
-    echo Please run build.bat first.
+REM Check if the requested build exists
+if not exist %BUILD_MODE%\PayServer.exe (
+    echo Error: PayServer.exe not found in %BUILD_MODE% directory!
+    echo Please run build.bat first to build the %BUILD_MODE% version.
     pause
     exit /b 1
 )
 
-echo Starting server (Release build)...
-Release\PayServer.exe
+echo Starting server (%BUILD_MODE% build)...
+%BUILD_MODE%\PayServer.exe
 
 :end
 pause
