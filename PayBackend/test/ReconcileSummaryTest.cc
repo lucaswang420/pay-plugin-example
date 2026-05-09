@@ -1,6 +1,7 @@
 #include <drogon/drogon_test.h>
 #include <drogon/utils/Utilities.h>
 #include "../models/PayOrder.h"
+#include "../models/PayPayment.h"
 #include "../models/PayRefund.h"
 #include "../plugins/PayPlugin.h"
 #include <chrono>
@@ -98,6 +99,18 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
         "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
     client->execSqlSync(
+        "CREATE TABLE IF NOT EXISTS pay_payment ("
+        "id BIGSERIAL PRIMARY KEY,"
+        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+        "order_no VARCHAR(64) NOT NULL,"
+        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+        "amount VARCHAR(32) NOT NULL,"
+        "request_payload TEXT,"
+        "response_payload TEXT,"
+        "channel_trade_no VARCHAR(64),"
+        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+    client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_refund ("
         "id BIGSERIAL PRIMARY KEY,"
         "refund_no VARCHAR(64) NOT NULL UNIQUE,"
@@ -146,11 +159,26 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
 
     using PayRefund = drogon_model::pay_test::PayRefund;
     drogon::orm::Mapper<PayRefund> refundMapper(client);
-    auto makeRefund = [&](const std::string &status, const std::string &orderNo) {
+
+    using PayPayment = drogon_model::pay_test::PayPayment;
+    drogon::orm::Mapper<PayPayment> paymentMapper(client);
+    auto makePayment = [&](const std::string &orderNo, const std::string &status) {
+        PayPayment payment;
+        payment.setPaymentNo("pay_" + drogon::utils::getUuid());
+        payment.setOrderNo(orderNo);
+        payment.setStatus(status);
+        payment.setAmount("9.99");
+        payment.setCreatedAt(trantor::Date::now());
+        payment.setUpdatedAt(trantor::Date::now());
+        paymentMapper.insert(payment);
+        return payment;
+    };
+
+    auto makeRefund = [&](const std::string &status, const std::string &orderNo, const std::string &paymentNo) {
         PayRefund refund;
         refund.setRefundNo("refund_" + drogon::utils::getUuid());
         refund.setOrderNo(orderNo);
-        refund.setPaymentNo("pay_" + drogon::utils::getUuid());
+        refund.setPaymentNo(paymentNo);
         refund.setStatus(status);
         refund.setAmount("9.99");
         refund.setCreatedAt(trantor::Date::now());
@@ -159,9 +187,13 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
         return refund;
     };
 
-    auto refundInit = makeRefund("REFUND_INIT", paying1.getValueOfOrderNo());
-    auto refunding = makeRefund("REFUNDING", paying2.getValueOfOrderNo());
-    auto refundDone = makeRefund("REFUND_SUCCESS", paid.getValueOfOrderNo());
+    auto payForPaying1 = makePayment(paying1.getValueOfOrderNo(), "SUCCESS");
+    auto payForPaying2 = makePayment(paying2.getValueOfOrderNo(), "SUCCESS");
+    auto payForPaid = makePayment(paid.getValueOfOrderNo(), "SUCCESS");
+
+    auto refundInit = makeRefund("REFUND_INIT", paying1.getValueOfOrderNo(), payForPaying1.getValueOfPaymentNo());
+    auto refunding = makeRefund("REFUNDING", paying2.getValueOfOrderNo(), payForPaying2.getValueOfPaymentNo());
+    auto refundDone = makeRefund("REFUND_SUCCESS", paid.getValueOfOrderNo(), payForPaid.getValueOfPaymentNo());
 
     PayPlugin plugin;
     plugin.setTestClients(nullptr, nullptr, client);
@@ -202,6 +234,12 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
                         refunding.getValueOfRefundNo());
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundDone.getValueOfRefundNo());
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
+                        payForPaying1.getValueOfPaymentNo());
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
+                        payForPaying2.getValueOfPaymentNo());
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
+                        payForPaid.getValueOfPaymentNo());
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
                         paying1.getValueOfOrderNo());
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",

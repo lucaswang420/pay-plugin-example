@@ -859,6 +859,31 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
         "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
         "expire_at TIMESTAMPTZ NOT NULL)");
     client->execSqlSync(
+        "CREATE TABLE IF NOT EXISTS pay_order ("
+        "id BIGSERIAL PRIMARY KEY,"
+        "order_no VARCHAR(64) UNIQUE NOT NULL,"
+        "user_id BIGINT NOT NULL,"
+        "amount VARCHAR(32) NOT NULL,"
+        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+        "title VARCHAR(512),"
+        "expire_at TIMESTAMP,"
+        "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+    client->execSqlSync(
+        "CREATE TABLE IF NOT EXISTS pay_payment ("
+        "id BIGSERIAL PRIMARY KEY,"
+        "payment_no VARCHAR(64) UNIQUE NOT NULL,"
+        "order_no VARCHAR(64) NOT NULL,"
+        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+        "amount VARCHAR(32) NOT NULL,"
+        "request_payload TEXT,"
+        "response_payload TEXT,"
+        "channel_trade_no VARCHAR(64),"
+        "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+    client->execSqlSync(
         "CREATE TABLE IF NOT EXISTS pay_refund ("
         "id BIGSERIAL PRIMARY KEY,"
         "refund_no VARCHAR(64) NOT NULL UNIQUE,"
@@ -887,6 +912,33 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
+
+    // Insert parent records to satisfy FK constraints
+    using PayOrder = drogon_model::pay_test::PayOrder;
+    drogon::orm::Mapper<PayOrder> orderMapper(client);
+    PayOrder order;
+    order.setOrderNo(orderNo);
+    order.setUserId(10001);
+    order.setAmount("9.99");
+    order.setCurrency("CNY");
+    order.setStatus("PAID");
+    order.setChannel("wechat");
+    order.setTitle("Test Order");
+    order.setCreatedAt(trantor::Date::now());
+    order.setUpdatedAt(trantor::Date::now());
+    orderMapper.insert(order);
+
+    using PayPayment = drogon_model::pay_test::PayPayment;
+    drogon::orm::Mapper<PayPayment> paymentMapper(client);
+    PayPayment payment;
+    payment.setPaymentNo(paymentNo);
+    payment.setOrderNo(orderNo);
+    payment.setStatus("SUCCESS");
+    payment.setAmount("9.99");
+    payment.setRequestPayload("{}");
+    payment.setCreatedAt(trantor::Date::now());
+    payment.setUpdatedAt(trantor::Date::now());
+    paymentMapper.insert(payment);
 
     using PayRefund = drogon_model::pay_test::PayRefund;
     drogon::orm::Mapper<PayRefund> refundMapper(client);
@@ -982,7 +1034,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     auto callbackService = plugin.callbackService();
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
-    callbackService->handlePaymentCallback(
+    callbackService->handleRefundCallback(
         std::string(req->body()),
         std::string(req->getHeader("Wechatpay-Signature")),
         std::string(req->getHeader("Wechatpay-Timestamp")),
@@ -1021,6 +1073,9 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
                         paymentNo);
     client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
                         refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
+                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
                         notifyId);
 
@@ -6371,7 +6426,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
     auto callbackService = plugin.callbackService();
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
-    callbackService->handlePaymentCallback(
+    callbackService->handleRefundCallback(
         std::string(req->body()),
         std::string(req->getHeader("Wechatpay-Signature")),
         std::string(req->getHeader("Wechatpay-Timestamp")),

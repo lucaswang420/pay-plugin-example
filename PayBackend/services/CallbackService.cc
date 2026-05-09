@@ -311,13 +311,70 @@ void CallbackService::handlePaymentCallback(
                                   idempotencyKey);
         idempMapper.findOne(
             idempCriteria,
-            [cbPtr](const PayIdempotencyModel &) {
-                // Already processed - return success
-                LOG_INFO << "[CallbackService] Idempotency key found, returning cached response";
-                Json::Value ok;
-                ok["code"] = "SUCCESS";
-                ok["message"] = "OK";
-                (*cbPtr)(ok, std::error_code());
+            [this,
+             cbPtr,
+             orderNo,
+             body,
+             signature,
+             serialNo](const PayIdempotencyModel &) {
+                // Already processed - record callback and return success
+                LOG_INFO << "[CallbackService] Idempotency key found for order: "
+                         << orderNo << ", recording callback";
+
+                auto respondSuccess = [cbPtr]() {
+                    Json::Value ok;
+                    ok["code"] = "SUCCESS";
+                    ok["message"] = "OK";
+                    (*cbPtr)(ok, std::error_code());
+                };
+
+                auto respondDbError =
+                    [cbPtr](const drogon::orm::DrogonDbException &e) {
+                        LOG_ERROR << "[CallbackService] DB error recording idempotent callback: "
+                                  << e.base().what();
+                        Json::Value error;
+                        error["code"] = "FAIL";
+                        error["message"] = std::string("db error: ") + e.base().what();
+                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
+                    };
+
+                drogon::orm::Mapper<PayPaymentModel> paymentLookup(dbClient_);
+                paymentLookup.findOne(
+                    drogon::orm::Criteria(PayPaymentModel::Cols::_order_no,
+                                          drogon::orm::CompareOperator::EQ,
+                                          orderNo),
+                    [this,
+                     cbPtr,
+                     orderNo,
+                     body,
+                     signature,
+                     serialNo,
+                     respondSuccess,
+                     respondDbError](const PayPaymentModel &payment) {
+                        const std::string paymentNo = payment.getValueOfPaymentNo();
+
+                        drogon::orm::Mapper<PayCallbackModel> callbackMapper(dbClient_);
+                        PayCallbackModel callbackRow;
+                        callbackRow.setPaymentNo(paymentNo);
+                        callbackRow.setRawBody(body);
+                        callbackRow.setSignature(signature);
+                        callbackRow.setSerialNo(serialNo);
+                        callbackRow.setVerified(true);
+                        callbackRow.setProcessed(true);
+                        callbackRow.setReceivedAt(trantor::Date::now());
+
+                        callbackMapper.insert(
+                            callbackRow,
+                            [respondSuccess](const PayCallbackModel &) {
+                                respondSuccess();
+                            },
+                            respondDbError);
+                    },
+                    [cbPtr, respondDbError](const drogon::orm::DrogonDbException &e) {
+                        LOG_ERROR << "[CallbackService] Payment not found during idempotent callback: "
+                                  << e.base().what();
+                        respondDbError(e);
+                    });
             },
             [this,
              cbPtr,
@@ -892,12 +949,82 @@ void CallbackService::handleRefundCallback(
                                   idempotencyKey);
         idempMapper.findOne(
             idempCriteria,
-            [cbPtr](const PayIdempotencyModel &) {
-                // Already processed - return success
-                Json::Value ok;
-                ok["code"] = "SUCCESS";
-                ok["message"] = "OK";
-                (*cbPtr)(ok, std::error_code());
+            [this,
+             cbPtr,
+             refundNo,
+             body,
+             signature,
+             serialNo,
+             plainJson](const PayIdempotencyModel &) {
+                // Already processed - record callback and return success
+                LOG_INFO << "[CallbackService] Refund idempotency key found for refund: "
+                         << refundNo << ", recording callback";
+
+                auto respondSuccess = [cbPtr]() {
+                    Json::Value ok;
+                    ok["code"] = "SUCCESS";
+                    ok["message"] = "OK";
+                    (*cbPtr)(ok, std::error_code());
+                };
+
+                auto respondDbError =
+                    [cbPtr](const drogon::orm::DrogonDbException &e) {
+                        LOG_ERROR << "[CallbackService] DB error recording idempotent refund callback: "
+                                  << e.base().what();
+                        Json::Value error;
+                        error["code"] = "FAIL";
+                        error["message"] = std::string("db error: ") + e.base().what();
+                        (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
+                    };
+
+                // Look up payment via out_trade_no from the decrypted plaintext
+                const std::string tradeOrderNo = plainJson.get("out_trade_no", "").asString();
+                if (tradeOrderNo.empty())
+                {
+                    LOG_ERROR << "[CallbackService] Missing out_trade_no in idempotent refund callback";
+                    Json::Value error;
+                    error["code"] = "FAIL";
+                    error["message"] = "missing out_trade_no";
+                    (*cbPtr)(error, pay::makePayError(1400, "missing out_trade_no"));
+                    return;
+                }
+
+                drogon::orm::Mapper<PayPaymentModel> paymentLookup(dbClient_);
+                paymentLookup.findOne(
+                    drogon::orm::Criteria(PayPaymentModel::Cols::_order_no,
+                                          drogon::orm::CompareOperator::EQ,
+                                          tradeOrderNo),
+                    [this,
+                     cbPtr,
+                     body,
+                     signature,
+                     serialNo,
+                     respondSuccess,
+                     respondDbError](const PayPaymentModel &payment) {
+                        const std::string paymentNo = payment.getValueOfPaymentNo();
+
+                        drogon::orm::Mapper<PayCallbackModel> callbackMapper(dbClient_);
+                        PayCallbackModel callbackRow;
+                        callbackRow.setPaymentNo(paymentNo);
+                        callbackRow.setRawBody(body);
+                        callbackRow.setSignature(signature);
+                        callbackRow.setSerialNo(serialNo);
+                        callbackRow.setVerified(true);
+                        callbackRow.setProcessed(true);
+                        callbackRow.setReceivedAt(trantor::Date::now());
+
+                        callbackMapper.insert(
+                            callbackRow,
+                            [respondSuccess](const PayCallbackModel &) {
+                                respondSuccess();
+                            },
+                            respondDbError);
+                    },
+                    [cbPtr, respondDbError](const drogon::orm::DrogonDbException &e) {
+                        LOG_ERROR << "[CallbackService] Payment not found during idempotent refund callback: "
+                                  << e.base().what();
+                        respondDbError(e);
+                    });
             },
             [this,
              cbPtr,

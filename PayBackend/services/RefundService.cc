@@ -242,6 +242,39 @@ void RefundService::proceedRefund(
     // Wrap callback in shared_ptr to prevent it from being destroyed during async operations
     auto sharedCb = std::make_shared<RefundCallback>(std::move(callback));
 
+    // Input validation
+    if (request.reason.size() > 80) {
+        if (*sharedCb) {
+            Json::Value error;
+            error["code"] = 1400;
+            error["message"] = "reason too long";
+            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+        }
+        return;
+    }
+    if (!request.fundsAccount.empty() &&
+        request.fundsAccount != "AVAILABLE" &&
+        request.fundsAccount != "UNSETTLED") {
+        if (*sharedCb) {
+            Json::Value error;
+            error["code"] = 1400;
+            error["message"] = "invalid funds_account";
+            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+        }
+        return;
+    }
+    if (!request.notifyUrl.empty() &&
+        request.notifyUrl.find("http://") != 0 &&
+        request.notifyUrl.find("https://") != 0) {
+        if (*sharedCb) {
+            Json::Value error;
+            error["code"] = 1400;
+            error["message"] = "invalid notify_url";
+            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+        }
+        return;
+    }
+
     const std::string refundNo = request.refundNo.empty() ?
         drogon::utils::getUuid() : request.refundNo;
     const std::string& orderNo = request.orderNo;
@@ -304,7 +337,7 @@ void RefundService::proceedRefund(
                 if (*sharedCb) {
                     Json::Value error;
                     error["code"] = 1409;
-                    error["message"] = "Payment not successful";
+                    error["message"] = "payment not successful";
                     (*sharedCb)(error, std::error_code(1409, std::system_category()));
                 }
                 return;
@@ -351,7 +384,7 @@ void RefundService::proceedOrderFlow(
                 if (*sharedCb) {
                     Json::Value error;
                     error["code"] = 1409;
-                    error["message"] = "Order not paid";
+                    error["message"] = "order not paid";
                     (*sharedCb)(error, std::error_code(1409, std::system_category()));
                 }
                 return;
@@ -479,7 +512,7 @@ void RefundService::proceedWithInProgressCheck(
                 if (*sharedCb) {
                     Json::Value error;
                     error["code"] = 1409;
-                    error["message"] = "Refund already in progress";
+                    error["message"] = "refund already in progress";
                     (*sharedCb)(error, std::error_code(1409, std::system_category()));
                 }
                 return;
@@ -686,16 +719,21 @@ void RefundService::proceedWithRefundInsert(
                     } else if (channel == "wechat") {
                         // WeChat refund
                         if (!wechatClient_) {
+                            const std::string errMsg = "wechat client not ready";
+                            Json::Value errJson;
+                            errJson["error"] = errMsg;
+                            updateRefundWithError(refundNo, errMsg, errJson);
                             if (*sharedCb) {
-                                Json::Value error;
-                                error["code"] = 1501;
-                                error["message"] = "WeChat client not ready";
-                                error["data"]["refund_no"] = refundNo;
-                                error["data"]["order_no"] = orderNo;
-                                error["data"]["payment_no"] = paymentNo;
-                                error["data"]["refund_amount"] = amount;
-                                error["data"]["status"] = "REFUND_FAIL";
-                                (*sharedCb)(error, std::error_code(1501, std::system_category()));
+                                Json::Value response;
+                                response["code"] = 0;
+                                response["message"] = "ok";
+                                response["data"]["refund_no"] = refundNo;
+                                response["data"]["order_no"] = orderNo;
+                                response["data"]["payment_no"] = paymentNo;
+                                response["data"]["amount"] = amount;
+                                response["data"]["status"] = "REFUND_FAIL";
+                                response["data"]["error"] = errMsg;
+                                (*sharedCb)(response, std::error_code());
                             }
                             return;
                         }
