@@ -197,8 +197,7 @@ void IdempotencyService::updateResult(
         "INSERT INTO pay_idempotency (idempotency_key, request_hash, response_snapshot) VALUES ($1, $2, $3) "
         "ON CONFLICT (idempotency_key) DO UPDATE SET "
         "response_snapshot = EXCLUDED.response_snapshot, "
-        "request_hash = EXCLUDED.request_hash, "
-        "updated_at = CURRENT_TIMESTAMP",
+        "request_hash = EXCLUDED.request_hash",
         [this, idempotencyKey, requestHash, response, cacheStr, sharedCb](const orm::Result& result) {
             // Update Redis cache if available
             if (redisClient_) {

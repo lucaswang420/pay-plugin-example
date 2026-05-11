@@ -222,9 +222,7 @@ void PaymentService::proceedCreatePayment(
     order.setChannel(request.channel);
     order.setTitle(request.description);
     order.setCreatedAt(trantor::Date::now());
-    order.setUpdatedAt(trantor::Date::now());
-
-    // Parse and set expire_at if timeExpire is provided
+// Parse and set expire_at if timeExpire is provided
     if (!request.timeExpire.empty()) {
         try {
             // Parse RFC 3339 format (e.g., "2026-05-07T12:34:56+08:00")
@@ -308,9 +306,7 @@ void PaymentService::proceedCreatePayment(
                 payment.setAmount(request.amount);
             payment.setRequestPayload(requestPayload);
             payment.setCreatedAt(trantor::Date::now());
-            payment.setUpdatedAt(trantor::Date::now());
-
-            paymentMapper.insert(
+paymentMapper.insert(
                 payment,
                 [this, request, paymentNo, payload, sharedCb](const PayPaymentModel &) {
                     LOG_INFO << "[PaymentService] Payment record created: payment_no=" << paymentNo
@@ -336,8 +332,7 @@ void PaymentService::proceedCreatePayment(
                                 [this, errPayload, request, sharedCb](PayPaymentModel payment) {
                                     payment.setStatus("FAIL");
                                     payment.setResponsePayload(errPayload);
-                                    payment.setUpdatedAt(trantor::Date::now());
-                                    Mapper<PayPaymentModel> paymentUpdater(dbClient_);
+Mapper<PayPaymentModel> paymentUpdater(dbClient_);
                                     paymentUpdater.update(
                                         payment,
                                         [this, request, sharedCb](const size_t) {
@@ -351,8 +346,7 @@ void PaymentService::proceedCreatePayment(
                                                 orderCriteria,
                                                 [this, sharedCb](PayOrderModel order) {
                                                     order.setStatus("FAILED");
-                                                    order.setUpdatedAt(trantor::Date::now());
-                                                    Mapper<PayOrderModel> orderUpdater(dbClient_);
+Mapper<PayOrderModel> orderUpdater(dbClient_);
                                                     orderUpdater.update(
                                                         order,
                                                         [](const size_t) {},
@@ -410,8 +404,7 @@ void PaymentService::proceedCreatePayment(
                                 PayPaymentModel payment) {
                                 payment.setStatus("PROCESSING");
                                 payment.setResponsePayload(responsePayload);
-                                payment.setUpdatedAt(trantor::Date::now());
-                                Mapper<PayPaymentModel> paymentUpdater(dbClient_);
+Mapper<PayPaymentModel> paymentUpdater(dbClient_);
                                 paymentUpdater.update(
                                     payment,
                                     [this, request, paymentNo, result, sharedCb](
@@ -427,8 +420,7 @@ void PaymentService::proceedCreatePayment(
                                             [this, request, paymentNo, result, sharedCb](
                                                 PayOrderModel order) {
                                                 order.setStatus("PAYING");
-                                                order.setUpdatedAt(trantor::Date::now());
-                                                Mapper<PayOrderModel> orderUpdater(dbClient_);
+Mapper<PayOrderModel> orderUpdater(dbClient_);
                                                 orderUpdater.update(
                                                     order,
                                                     [this, request, paymentNo, result, sharedCb](
@@ -931,8 +923,7 @@ void PaymentService::syncOrderStatusFromWechat(
                                         const auto orderAmount = order.getValueOfAmount();
                                         const auto orderNo = order.getValueOfOrderNo();
                                         order.setStatus(orderStatus);
-                                        order.setUpdatedAt(trantor::Date::now());
-                                        Mapper<PayOrderModel> orderUpdater(transPtr);
+Mapper<PayOrderModel> orderUpdater(transPtr);
                                         orderUpdater.update(
                                             order,
                                             [userId, orderNo, paymentNo, orderAmount, orderStatus, transPtr, transDb](
@@ -972,8 +963,7 @@ void PaymentService::syncOrderStatusFromWechat(
                         payment.setStatus(paymentStatus);
                         payment.setChannelTradeNo(transactionId);
                         payment.setResponsePayload(responsePayload);
-                        payment.setUpdatedAt(trantor::Date::now());
-                        Mapper<PayPaymentModel> paymentUpdater(transPtr);
+Mapper<PayPaymentModel> paymentUpdater(transPtr);
                         paymentUpdater.update(
                             payment,
                             [this, orderNo, orderStatus, paymentNo, callback, transPtr, transDb](
@@ -998,8 +988,7 @@ void PaymentService::syncOrderStatusFromWechat(
                                         const auto orderAmount = order.getValueOfAmount();
                                         const auto orderNo = order.getValueOfOrderNo();
                                         order.setStatus(orderStatus);
-                                        order.setUpdatedAt(trantor::Date::now());
-                                        Mapper<PayOrderModel> orderUpdater(transPtr);
+Mapper<PayOrderModel> orderUpdater(transPtr);
                                         orderUpdater.update(
                                             order,
                                             [callback, orderStatus, userId, orderNo, paymentNo,
@@ -1152,8 +1141,7 @@ void PaymentService::syncOrderStatusFromAlipay(
                                         const auto orderAmount = order.getValueOfAmount();
                                         const auto orderNo = order.getValueOfOrderNo();
                                         order.setStatus(orderStatus);
-                                        order.setUpdatedAt(trantor::Date::now());
-                                        Mapper<PayOrderModel> orderUpdater(transPtr);
+Mapper<PayOrderModel> orderUpdater(transPtr);
                                         orderUpdater.update(
                                             order,
                                             [userId, orderNo, paymentNo, orderAmount, orderStatus, transPtr, transDb](
@@ -1193,8 +1181,7 @@ void PaymentService::syncOrderStatusFromAlipay(
                         payment.setStatus(paymentStatus);
                         payment.setChannelTradeNo(transactionId);
                         payment.setResponsePayload(responsePayload);
-                        payment.setUpdatedAt(trantor::Date::now());
-                        Mapper<PayPaymentModel> paymentUpdater(transPtr);
+Mapper<PayPaymentModel> paymentUpdater(transPtr);
                         paymentUpdater.update(
                             payment,
                             [this, orderNo, orderStatus, paymentNo, callback, transPtr, transDb](
@@ -1219,8 +1206,7 @@ void PaymentService::syncOrderStatusFromAlipay(
                                         const auto orderAmount = order.getValueOfAmount();
                                         const auto orderNo = order.getValueOfOrderNo();
                                         order.setStatus(orderStatus);
-                                        order.setUpdatedAt(trantor::Date::now());
-                                        Mapper<PayOrderModel> orderUpdater(transPtr);
+Mapper<PayOrderModel> orderUpdater(transPtr);
                                         orderUpdater.update(
                                             order,
                                             [callback, orderStatus, userId, orderNo, paymentNo,

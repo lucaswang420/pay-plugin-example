@@ -1,6 +1,16 @@
 -- Pay Plugin Database Schema
--- Initial table creation
+-- Initial table creation with auto-update triggers for updated_at
 
+-- 1. Create the trigger function first
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 2. Create tables
 CREATE TABLE IF NOT EXISTS pay_order (
     id BIGSERIAL PRIMARY KEY,
     order_no VARCHAR(64) UNIQUE NOT NULL,
@@ -51,6 +61,7 @@ CREATE TABLE IF NOT EXISTS pay_callback (
     verified BOOLEAN NOT NULL DEFAULT FALSE,
     processed BOOLEAN NOT NULL DEFAULT FALSE,
     received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- Note: callbacks are generally insert-only, so no updated_at needed here
 );
 
 CREATE TABLE IF NOT EXISTS pay_idempotency (
@@ -71,4 +82,30 @@ CREATE TABLE IF NOT EXISTS pay_ledger (
     amount VARCHAR(32) NOT NULL,
     balance VARCHAR(32),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- Note: ledger entries are immutable (append-only), so no updated_at needed here
 );
+
+-- 3. Attach triggers to tables that have updated_at
+DROP TRIGGER IF EXISTS update_pay_order_modtime ON pay_order;
+CREATE TRIGGER update_pay_order_modtime
+    BEFORE UPDATE ON pay_order
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pay_payment_modtime ON pay_payment;
+CREATE TRIGGER update_pay_payment_modtime
+    BEFORE UPDATE ON pay_payment
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pay_refund_modtime ON pay_refund;
+CREATE TRIGGER update_pay_refund_modtime
+    BEFORE UPDATE ON pay_refund
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_pay_idempotency_modtime ON pay_idempotency;
+CREATE TRIGGER update_pay_idempotency_modtime
+    BEFORE UPDATE ON pay_idempotency
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

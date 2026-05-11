@@ -633,9 +633,7 @@ void RefundService::proceedWithRefundInsert(
             refund.setStatus("REFUND_INIT");
             refund.setAmount(amount);
             refund.setCreatedAt(trantor::Date::now());
-            refund.setUpdatedAt(trantor::Date::now());
-
-            refundMapper.insert(
+refundMapper.insert(
                 refund,
                 [this, channel, request, idempotencyKey, requestHash, refundNo, orderNo, paymentNo, amount, refundFen, totalFen,
                  currency, reason, sharedCb](const PayRefundModel &) mutable {
@@ -839,8 +837,7 @@ void RefundService::updateRefundWithError(
         criteria,
         [this, errorMessage, errJson, refundNo](PayRefundModel refund) {
             refund.setStatus("REFUND_FAIL");
-            refund.setUpdatedAt(trantor::Date::now());
-            Mapper<PayRefundModel> refundUpdater(dbClient_);
+Mapper<PayRefundModel> refundUpdater(dbClient_);
             refundUpdater.update(
                 refund,
                 [this, errJson, refundNo](const size_t) {
@@ -882,8 +879,7 @@ void RefundService::updateRefundWithSuccess(
             PayRefundModel refund) mutable {
             refund.setStatus(refundStatus);
             refund.setChannelRefundNo(refundId);
-            refund.setUpdatedAt(trantor::Date::now());
-            Mapper<PayRefundModel> refundUpdater(dbClient_);
+Mapper<PayRefundModel> refundUpdater(dbClient_);
             refundUpdater.update(
                 refund,
                 [this, refundNo, refundStatus, refundId, result, orderNo, paymentNo, amount, sharedCb](
@@ -901,8 +897,7 @@ void RefundService::updateRefundWithSuccess(
                                     [this, refundNo, refundStatus, refundId, result, orderNo, paymentNo, amount, sharedCb](
                                         PayOrderModel order) mutable {
                                         order.setStatus("REFUNDED");
-                                        order.setUpdatedAt(trantor::Date::now());
-                                        Mapper<PayOrderModel> orderUpdater(dbClient_);
+Mapper<PayOrderModel> orderUpdater(dbClient_);
                                         orderUpdater.update(
                                             order,
                                             [this, refundNo, refundStatus, refundId, result, orderNo, paymentNo, amount, sharedCb](
@@ -1112,9 +1107,7 @@ void RefundService::syncRefundStatusFromWechat(
 
                     refund.setStatus(refundStatus);
                     refund.setChannelRefundNo(refundId);
-                    refund.setUpdatedAt(trantor::Date::now());
-
-                    Mapper<PayRefundModel> refundUpdater(transPtr);
+Mapper<PayRefundModel> refundUpdater(transPtr);
                     refundUpdater.update(
                         refund,
                         [this, refundStatus, orderNo, paymentNo, refundAmount, refundNo,

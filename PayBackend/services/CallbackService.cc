@@ -603,8 +603,7 @@ void CallbackService::handlePaymentCallback(
                                                             payment.setStatus(paymentStatus);
                                                             payment.setChannelTradeNo(transactionId);
                                                             payment.setResponsePayload(plaintext);
-                                                            payment.setUpdatedAt(trantor::Date::now());
-                                                            drogon::orm::Mapper<PayPaymentModel>
+drogon::orm::Mapper<PayPaymentModel>
                                                                 paymentUpdater(transPtr);
                                                             LOG_INFO << "[CallbackService] About to update payment record for order: " << orderNo;
                                                             paymentUpdater.update(
@@ -621,8 +620,7 @@ void CallbackService::handlePaymentCallback(
                                                                         orderUpdater(transPtr);
                                                                     // Update order fields
                                                                     order.setStatus(orderStatus);
-                                                                    order.setUpdatedAt(trantor::Date::now());
-                                                                    LOG_INFO << "[CallbackService] About to update order record for order: " << orderNo << ", status: " << orderStatus;
+LOG_INFO << "[CallbackService] About to update order record for order: " << orderNo << ", status: " << orderStatus;
                                                                     orderUpdater.update(
                                                                         order,
                                                                         [cbPtr,
@@ -1158,9 +1156,7 @@ void CallbackService::handleRefundCallback(
 
                                     refund.setStatus(refundStatus);
                                     refund.setChannelRefundNo(refundId);
-                                    refund.setUpdatedAt(trantor::Date::now());
-
-                                    dbClient_->newTransactionAsync(
+dbClient_->newTransactionAsync(
                                         [this,
                                          cbPtr,
                                          refundStatus,
