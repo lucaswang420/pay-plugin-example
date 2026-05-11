@@ -122,7 +122,11 @@ namespace {
     std::string toRfc3339Utc(const trantor::Date &when) {
         const auto seconds = static_cast<time_t>(when.microSecondsSinceEpoch() / 1000000);
         std::tm tmUtc{};
+#ifdef _WIN32
         gmtime_s(&tmUtc, &seconds);
+#else
+        gmtime_r(&seconds, &tmUtc);
+#endif
         char buffer[32]{};
         if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &tmUtc) == 0) {
             return {};
@@ -1351,7 +1355,11 @@ std::string PaymentService::generatePaymentNo() {
     std::ostringstream oss;
     time_t now = std::time(nullptr);
     struct tm tmInfo;
+#ifdef _WIN32
     localtime_s(&tmInfo, &now);
+#else
+    localtime_r(&now, &tmInfo);
+#endif
     oss << "PAY" << std::put_time(&tmInfo, "%Y%m%d%H%M%S");
     oss << std::setfill('0') << std::setw(8) << dis(gen);
 
