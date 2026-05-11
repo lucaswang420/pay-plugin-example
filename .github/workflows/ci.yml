@@ -43,64 +43,83 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install Drogon dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            git \
+            gcc \
+            g++ \
             cmake \
-            build-essential \
+            libjsoncpp-dev \
+            uuid-dev \
             libpq-dev \
             libssl-dev \
             zlib1g-dev \
+            libhiredis-dev \
+            redis-tools
+
+      - name: Build Drogon
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
+          make -j$(nproc)
+
+      - name: Install Drogon
+        run: |
+          cd drogon/build
+          sudo make install
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get install -y \
             postgresql-client \
             redis-tools \
             python3 \
             python3-pip
 
-      - name: Install Conan
+      - name: Configure Project CMake
+        working-directory: ${{github.workspace}}/PayBackend
         run: |
-          pip3 install conan
-          conan --version
-
-      - name: Create Conan profile
-        run: |
-          conan profile detect --force
-
-      - name: Cache Conan packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.conan/data
-          key: ${{ runner.os }}-conan-${{ hashFiles('**/conanfile.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-conan-
-
-      - name: Install project dependencies
-        working-directory: PayBackend
-        run: |
-          conan install . --build=missing -s build_type=Release
-
-      - name: Configure CMake
-        working-directory: PayBackend
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DBUILD_TESTING=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
 
       - name: Build
         working-directory: PayBackend
         run: |
           cmake --build build --config ${{ env.BUILD_TYPE }}
 
-      - name: Prepare test database
+      - name: Wait for services
         run: |
-          PGPASSWORD=test psql -h localhost -U test -c "CREATE DATABASE pay_test;" 2>/dev/null || true
-          # Run migrations if needed
-          # PGPASSWORD=test psql -h localhost -U test -d pay_test -f migrations/001_init.sql
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Initialize Database
+        working-directory: ${{github.workspace}}/PayBackend
+        env:
+          PGPASSWORD: test
+        run: |
+          psql -h localhost -U test -d pay_test -f sql/001_init.sql || echo "Database init script not found or already initialized"
 
       - name: Run tests
-        working-directory: PayBackend
-        run: |
-          ctest --test-dir build --output-on-failure || true
+        working-directory: ${{github.workspace}}/PayBackend/build
+        env:
+          PAY_REDIS_PASSWORD: ""
+          PAY_DB_HOST: "127.0.0.1"
+          PAY_REDIS_HOST: "127.0.0.1"
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120 || true
 
       - name: Upload test results
         if: always()
