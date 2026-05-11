@@ -62,6 +62,10 @@ jobs:
           pip3 install conan
           conan --version
 
+      - name: Create Conan profile
+        run: |
+          conan profile detect --force
+
       - name: Cache Conan packages
         uses: actions/cache@v4
         with:
