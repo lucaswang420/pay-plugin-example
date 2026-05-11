@@ -503,14 +503,8 @@ void CallbackService::handlePaymentCallback(
                                             const std::string orderAmount =
                                                 payment.getValueOfAmount();
 
-                                            drogon::orm::Mapper<PayOrderModel> orderMapper(transPtr);
-                                            auto orderCriteria =
-                                                drogon::orm::Criteria(
-                                                    PayOrderModel::Cols::_order_no,
-                                                    drogon::orm::CompareOperator::EQ,
-                                                    orderNo);
-                                            orderMapper.findOne(
-                                                orderCriteria,
+                                            payment.getPayOrder(
+                                                transPtr,
                                                 [this,
                                                  cbPtr,
                                                  orderNo,

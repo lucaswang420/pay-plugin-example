@@ -574,7 +574,7 @@ void RefundService::proceedWithInsert(
             if (refundedFen + refundFen > totalFen) {
                 if (*sharedCb) {
                     Json::Value error;
-                    error["code"] = 1409;
+                    error["code"] = 409;
                     error["message"] = "refund amount exceeds paid";
                     (*sharedCb)(error, std::error_code(409, std::system_category()));
                 }

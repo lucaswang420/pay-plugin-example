@@ -15,5 +15,34 @@
         "pay_refund",
         "pay_ledger",
         "pay_idempotency"
-    ]
+    ],
+    "relationships": {
+        "enabled": true,
+        "items": [
+            {
+                "type": "has many",
+                "original_table_name": "pay_order",
+                "original_key": "order_no",
+                "target_table_name": "pay_payment",
+                "target_key": "order_no",
+                "enable_reverse": true
+            },
+            {
+                "type": "has many",
+                "original_table_name": "pay_order",
+                "original_key": "order_no",
+                "target_table_name": "pay_refund",
+                "target_key": "order_no",
+                "enable_reverse": true
+            },
+            {
+                "type": "has many",
+                "original_table_name": "pay_payment",
+                "original_key": "payment_no",
+                "target_table_name": "pay_callback",
+                "target_key": "payment_no",
+                "enable_reverse": true
+            }
+        ]
+    }
 }

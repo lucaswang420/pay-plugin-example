@@ -38,6 +38,7 @@ namespace drogon_model
 {
 namespace pay_test
 {
+class PayPayment;
 
 class PayCallback
 {
@@ -181,6 +182,10 @@ class PayCallback
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    PayPayment getPayPayment(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getPayPayment(const drogon::orm::DbClientPtr &clientPtr,
+                       const std::function<void(PayPayment)> &rcb,
+                       const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<PayCallback>;
     friend drogon::orm::BaseBuilder<PayCallback, true, true>;

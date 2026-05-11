@@ -38,6 +38,7 @@ namespace drogon_model
 {
 namespace pay_test
 {
+class PayOrder;
 
 class PayPayment
 {
@@ -203,6 +204,10 @@ class PayPayment
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    PayOrder getPayOrder(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getPayOrder(const drogon::orm::DbClientPtr &clientPtr,
+                     const std::function<void(PayOrder)> &rcb,
+                     const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<PayPayment>;
     friend drogon::orm::BaseBuilder<PayPayment, true, true>;
