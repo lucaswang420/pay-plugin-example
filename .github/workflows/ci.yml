@@ -8,14 +8,16 @@ on:
 
 env:
   BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.12"
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
 
     services:
       postgres:
-        image: postgres:13
+        image: postgres:15-alpine
         env:
           POSTGRES_DB: pay_test
           POSTGRES_USER: test
@@ -29,7 +31,7 @@ jobs:
           - 5432:5432
 
       redis:
-        image: redis:6
+        image: redis:7-alpine
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -39,8 +41,7 @@ jobs:
           - 6379:6379
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
@@ -62,7 +63,7 @@ jobs:
           conan --version
 
       - name: Cache Conan packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.conan/data
           key: ${{ runner.os }}-conan-${{ hashFiles('**/conanfile.txt') }}
@@ -99,10 +100,11 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: linux-test-results
           path: PayBackend/build/Testing/
+          retention-days: 7
 
       - name: Run static analysis
         working-directory: PayBackend
@@ -133,11 +135,11 @@ jobs:
           trivy fs --security-checks vuln PayBackend/ || true
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Check code style
         run: |
@@ -168,19 +170,19 @@ jobs:
           markdownlint '**/*.md' || true
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Conan
         run: |
           pip install conan
-          conan --version
+          conan profile detect --force
 
       - name: Cache Conan packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.conan/data
           key: ${{ runner.os }}-conan-${{ hashFiles('**/conanfile.txt') }}
@@ -199,7 +201,8 @@ jobs:
           scripts\build.bat
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: payserver-windows
           path: PayBackend/build/Release/PayServer.exe
+          retention-days: 7
