@@ -1,0 +1,95 @@
+name: Windows CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.12"
+
+jobs:
+  build-and-test:
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Conan
+        run: |
+          pip install conan
+          conan profile detect --force
+
+      # --- Conan dependency cache ---
+      # Disabled Conan cache to avoid cache-related conflicts
+      # - name: Cache Conan packages
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.conan/data
+      #     key: ${{ runner.os }}-conan-${{ hashFiles('**/conanfile.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-conan-
+
+      - name: Configure CMake using Conan
+        working-directory: ${{github.workspace}}/PayBackend
+        run: |
+          # Remove old build directory to avoid cache conflicts
+          Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
+          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}} -s compiler.cppstd=17
+
+      # --- Drogon build cache ---
+      # Disabled Drogon cache to avoid cache key conflicts and force fresh builds
+      # - name: Cache Drogon build
+      #   id: cache-drogon
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ${{github.workspace}}/drogon
+      #     key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-full-components-${{ env.BUILD_TYPE }}
+
+      - name: Build Drogon
+        # if: steps.cache-drogon.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_CXX_STANDARD=17 `
+            -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
+            -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/PayBackend/build/conan_toolchain.cmake" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DBUILD_CTL=ON `
+            -DBUILD_ORM=ON `
+            -DBUILD_EXAMPLES=OFF `
+            -DBUILD_POSTGRESQL=ON `
+            -DBUILD_MYSQL=OFF `
+            -DBUILD_SQLITE=ON `
+            -DBUILD_REDIS=ON `
+            -DBUILD_BROTLI=ON `
+            -DBUILD_YAML_CONFIG=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target install --parallel $env:NUMBER_OF_PROCESSORS
+
+      - name: Configure Project CMake
+        working-directory: ${{github.workspace}}/PayBackend
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/PayBackend/build/conan_toolchain.cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_PREFIX_PATH="C:\Drogon" -DDrogon_DIR="C:\Drogon\lib\cmake\Drogon" -DBUILD_TESTS=ON
+
+      - name: Build
+        working-directory: ${{github.workspace}}/PayBackend
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-logs
+          path: |
+            ${{github.workspace}}/PayBackend/build/Testing/
+            ${{github.workspace}}/PayBackend/logs/
+          retention-days: 7

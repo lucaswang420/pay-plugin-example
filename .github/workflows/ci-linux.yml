@@ -1,0 +1,131 @@
+name: Linux CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.12"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: pay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Drogon dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            gcc \
+            g++ \
+            cmake \
+            libjsoncpp-dev \
+            uuid-dev \
+            libpq-dev \
+            libssl-dev \
+            zlib1g-dev \
+            libhiredis-dev \
+            redis-tools
+
+      - name: Build Drogon
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
+          make -j$(nproc)
+
+      - name: Install Drogon
+        run: |
+          cd drogon/build
+          sudo make install
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get install -y \
+            postgresql-client \
+            redis-tools \
+            python3 \
+            python3-pip
+
+      - name: Configure Project CMake
+        working-directory: ${{github.workspace}}/PayBackend
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
+
+      - name: Build
+        working-directory: ${{github.workspace}}/PayBackend
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Initialize Database
+        working-directory: ${{github.workspace}}/PayBackend
+        env:
+          PGPASSWORD: test
+        run: |
+          psql -h localhost -U test -d pay_test -f sql/001_init.sql || echo "Database init script not found or already initialized"
+
+      - name: Test
+        working-directory: ${{github.workspace}}/PayBackend/build
+        env:
+          PAY_REDIS_PASSWORD: ""
+          PAY_DB_HOST: "127.0.0.1"
+          PAY_REDIS_HOST: "127.0.0.1"
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-logs
+          path: |
+            ${{github.workspace}}/PayBackend/build/Testing/
+            ${{github.workspace}}/PayBackend/logs/
+          retention-days: 7

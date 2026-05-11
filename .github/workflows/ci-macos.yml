@@ -1,0 +1,86 @@
+name: macOS CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.12"
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Drogon dependencies
+        run: |
+          # Upgrade Homebrew
+          brew upgrade
+
+          # Install core dependencies (no databases needed for build-only)
+          brew install git cmake
+          brew install jsoncpp
+          brew install ossp-uuid
+          brew install zlib
+          brew install openssl@3 libpq hiredis
+
+      # --- Drogon build cache ---
+      # Temporarily disable cache to force rebuild after key change
+      # - name: Cache Drogon build
+      #   id: cache-drogon
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ${{github.workspace}}/drogon
+      #     key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-cpp17-pure-${{ env.BUILD_TYPE }}
+
+      - name: Build Drogon
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          export PostgreSQL_ROOT="$(brew --prefix libpq)"
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix openssl@3);$(brew --prefix libpq);$(brew --prefix hiredis)" \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Install Drogon
+        run: |
+          cd drogon/build
+          sudo make install
+
+      - name: Configure Project CMake
+        working-directory: ${{github.workspace}}/PayBackend
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DBUILD_TESTS=ON \
+            -DCMAKE_PREFIX_PATH="/usr/local;$(brew --prefix openssl@3);$(brew --prefix libpq);$(brew --prefix hiredis)"
+
+      - name: Build
+        working-directory: ${{github.workspace}}/PayBackend
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-logs
+          path: |
+            ${{github.workspace}}/PayBackend/build/Testing/
+            ${{github.workspace}}/PayBackend/logs/
+          retention-days: 7
