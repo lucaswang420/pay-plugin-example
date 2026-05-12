@@ -123,7 +123,11 @@ namespace {
     std::string toRfc3339Utc(const trantor::Date &when) {
         const auto seconds = static_cast<time_t>(when.microSecondsSinceEpoch() / 1000000);
         std::tm tmUtc{};
+#ifdef _WIN32
         gmtime_s(&tmUtc, &seconds);
+#else
+        gmtime_r(&seconds, &tmUtc);
+#endif
         char buffer[32]{};
         if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &tmUtc) == 0) {
             return {};
