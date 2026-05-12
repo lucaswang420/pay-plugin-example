@@ -67,9 +67,21 @@ if(MSVC)
     )
 endif()
 
-add_test(
-    NAME PayBackendTests
-    COMMAND powershell -ExecutionPolicy Bypass -File
-            "${CMAKE_CURRENT_SOURCE_DIR}/run_all_tests.ps1"
-            "$<TARGET_FILE:${PROJECT_NAME}>"
-)
+# Platform-specific test configuration
+if(WIN32)
+    # Windows: Use PowerShell script
+    add_test(
+        NAME PayBackendTests
+        COMMAND powershell -ExecutionPolicy Bypass -File
+                "${CMAKE_CURRENT_SOURCE_DIR}/run_all_tests.ps1"
+                "$<TARGET_FILE:${PROJECT_NAME}>"
+    )
+else()
+    # Linux/macOS: Run test executable directly
+    add_test(
+        NAME PayBackendTests
+        COMMAND ${PROJECT_NAME}
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif()
+
