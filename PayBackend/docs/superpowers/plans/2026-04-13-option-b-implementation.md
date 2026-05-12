@@ -37,21 +37,21 @@ PayBackend/
 │   └── ReconciliationService.cc/h # 对账服务
 ├── test/
 │   ├── CMakeLists.txt         # 测试构建配置（已修改）
-│   ├── QueryOrderTest.cc      # 已更新 ✅
+│   ├── QueryOrderTest.cc      # 已更新 [PASS]
 │   ├── RefundQueryTest.cc     # 部分更新（3/19）⏳
 │   ├── CreatePaymentIntegrationTest.cc  # 待更新 ⏳
 │   ├── WechatCallbackIntegrationTest.cc # 待更新 ⏳
 │   ├── ReconcileSummaryTest.cc # 待更新 ⏳
 │   └── ...其他已验证的测试
-└── config.json                # 配置文件（已优化）✅
+└── config.json                # 配置文件（已优化）[PASS]
 ```
 
 ### 文档文件
 ```
 PayBackend/docs/
-├── current_status_2026_04_13.md  # 当前状态总结 ✅
-├── test_update_progress.md       # 测试更新进度 ✅
-├── production_readiness_roadmap.md # 生产就绪路线图 ✅
+├── current_status_2026_04_13.md  # 当前状态总结 [PASS]
+├── test_update_progress.md       # 测试更新进度 [PASS]
+├── production_readiness_roadmap.md # 生产就绪路线图 [PASS]
 └── superpowers/plans/
     └── 2026-04-13-option-b-implementation.md # 本计划
 ```
@@ -426,7 +426,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 编辑 `PayBackend/test/CMakeLists.txt`，取消注释：
 ```cmake
 set(TEST_SRC
-    CreatePaymentIntegrationTest.cc  # ✅ 启用
+    CreatePaymentIntegrationTest.cc  # [PASS] 启用
     ControllerMetricsTest.cc
     IdempotencyIntegrationTest.cc
     test_main.cc
@@ -435,9 +435,9 @@ set(TEST_SRC
     PayUtilsTest.cc
     QueryOrderTest.cc
     WechatPayClientTest.cc
-    WechatCallbackIntegrationTest.cc  # ✅ 启用
-    RefundQueryTest.cc  # ✅ 启用
-    ReconcileSummaryTest.cc  # ✅ 启用
+    WechatCallbackIntegrationTest.cc  # [PASS] 启用
+    RefundQueryTest.cc  # [PASS] 启用
+    ReconcileSummaryTest.cc  # [PASS] 启用
     # TDD_SimpleTest.cc  # 待修复
 )
 ```
@@ -1176,14 +1176,14 @@ cd PayBackend
 ./build/Debug/test_payplugin.exe
 ```
 
-确保：✅ 所有测试通过（目标80%+覆盖率）
+确保：[PASS] 所有测试通过（目标80%+覆盖率）
 
 - [ ] **Step 2: 性能基准测试**
 
 使用Apache Bench验证所有端点
-- ✅ P50 < 50ms
-- ✅ P95 < 200ms
-- ✅ RPS > 100
+- [PASS] P50 < 50ms
+- [PASS] P95 < 200ms
+- [PASS] RPS > 100
 
 - [ ] **Step 3: 安全检查清单复查**
 
@@ -1249,7 +1249,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
 ---
 
-## 📊 总结
+## [INFO] 总结
 
 ### 工作量估算
 
@@ -1268,12 +1268,12 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
 ### 成功标准
 
-- ✅ 测试覆盖率 ≥ 80%
-- ✅ 所有P0测试通过
-- ✅ 性能目标达成（P50 < 50ms, P95 < 200ms, RPS > 100）
-- ✅ 零已知P0/P1 Bug
-- ✅ 完整文档（部署、运维、监控）
-- ✅ CI/CD配置完成
+- [PASS] 测试覆盖率 ≥ 80%
+- [PASS] 所有P0测试通过
+- [PASS] 性能目标达成（P50 < 50ms, P95 < 200ms, RPS > 100）
+- [PASS] 零已知P0/P1 Bug
+- [PASS] 完整文档（部署、运维、监控）
+- [PASS] CI/CD配置完成
 
 ---
 

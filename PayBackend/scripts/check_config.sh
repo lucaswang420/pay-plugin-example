@@ -12,11 +12,11 @@ ISSUES_FOUND=0
 
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "❌ ERROR: config.json not found at $CONFIG_FILE"
+    echo "[ERROR] ERROR: config.json not found at $CONFIG_FILE"
     exit 1
 fi
 
-echo "✅ config.json found"
+echo "[PASS] config.json found"
 echo ""
 
 # Function to check for placeholder values
@@ -26,14 +26,14 @@ check_placeholder() {
     local field=$3
     
     if echo "$value" | grep -qiE "YOUR_|FIXME|TODO|example\.com|localhost"; then
-        echo "❌ $key: Placeholder value detected"
+        echo "[ERROR] $key: Placeholder value detected"
         echo "   Field: $field"
         echo "   Current value: \"$value\""
         echo ""
         ((ISSUES_FOUND++))
         return 1
     else
-        echo "✅ $key: OK"
+        echo "[PASS] $key: OK"
         return 0
     fi
 }
@@ -71,21 +71,21 @@ PRIVATE_KEY_PATH="$(grep -oP '"private_key_path":\s*"\K[^"]*' "$CONFIG_FILE" | h
 PLATFORM_CERT_PATH="$(grep -oP '"platform_cert_path":\s*"\K[^"]*' "$CONFIG_FILE" | head -1)"
 
 if [ ! -f "PayBackend/$PRIVATE_KEY_PATH" ]; then
-    echo "❌ Private key certificate not found"
+    echo "[ERROR] Private key certificate not found"
     echo "   Expected path: PayBackend/$PRIVATE_KEY_PATH"
     echo ""
     ((ISSUES_FOUND++))
 else
-    echo "✅ Private key certificate found"
+    echo "[PASS] Private key certificate found"
 fi
 
 if [ ! -f "PayBackend/$PLATFORM_CERT_PATH" ]; then
-    echo "❌ Platform certificate not found"
+    echo "[ERROR] Platform certificate not found"
     echo "   Expected path: PayBackend/$PLATFORM_CERT_PATH"
     echo ""
     ((ISSUES_FOUND++))
 else
-    echo "✅ Platform certificate found"
+    echo "[PASS] Platform certificate found"
 fi
 
 # Check HTTPS
@@ -95,12 +95,12 @@ echo ""
 
 HTTPS_ENABLED=$(grep -oP '"https":\s*\K[true|false]' "$CONFIG_FILE" | head -1)
 if [ "$HTTPS_ENABLED" == "false" ]; then
-    echo "⚠️  HTTPS is disabled (HTTP only)"
+    echo "[WARNING]️  HTTPS is disabled (HTTP only)"
     echo "   Impact: All traffic is unencrypted"
     echo "   Recommendation: Enable for production"
     echo ""
 else
-    echo "✅ HTTPS is enabled"
+    echo "[PASS] HTTPS is enabled"
 fi
 
 # Check database password
@@ -110,22 +110,22 @@ echo ""
 
 DB_PASSWD=$(grep -oP '"passwd":\s*"\K[^"]*' "$CONFIG_FILE" | head -1)
 if [ "$DB_PASSWD" == "123456" ]; then
-    echo "⚠️  Weak database password detected"
+    echo "[WARNING]️  Weak database password detected"
     echo "   Current value: \"$DB_PASSWD\""
     echo "   Recommendation: Use strong password or environment variable"
     echo ""
 else
-    echo "✅ Database password configured"
+    echo "[PASS] Database password configured"
 fi
 
 REDIS_PASSWD=$(grep -A 10 '"redis_clients"' "$CONFIG_FILE" | grep -oP '"passwd":\s*"\K[^"]*' | head -1)
 if [ "$REDIS_PASSWD" == "123456" ]; then
-    echo "⚠️  Weak Redis password detected"
+    echo "[WARNING]️  Weak Redis password detected"
     echo "   Current value: \"$REDIS_PASSWD\""
     echo "   Recommendation: Use strong password or environment variable"
     echo ""
 else
-    echo "✅ Redis password configured"
+    echo "[PASS] Redis password configured"
 fi
 
 # Check for environment variables
@@ -134,12 +134,12 @@ echo "Checking environment variables..."
 echo ""
 
 if [ -z "$PAY_API_KEY" ] && [ -z "$PAY_API_KEYS" ]; then
-    echo "⚠️  No API keys configured in environment"
+    echo "[WARNING]️  No API keys configured in environment"
     echo "   Set PAY_API_KEY or PAY_API_KEYS environment variable"
     echo ""
     ((ISSUES_FOUND++))
 else
-    echo "✅ API keys configured in environment"
+    echo "[PASS] API keys configured in environment"
 fi
 
 # Summary
@@ -149,12 +149,12 @@ echo "Check Summary"
 echo "========================================"
 
 if [ $ISSUES_FOUND -eq 0 ]; then
-    echo "✅ All critical configurations are valid!"
+    echo "[PASS] All critical configurations are valid!"
     echo ""
-    echo "⚠️  Warnings may still exist. Review above for recommendations."
+    echo "[WARNING]️  Warnings may still exist. Review above for recommendations."
     exit 0
 else
-    echo "❌ Found $ISSUES_FOUND configuration issue(s) that need attention"
+    echo "[ERROR] Found $ISSUES_FOUND configuration issue(s) that need attention"
     echo ""
     echo "Next steps:"
     echo "1. Review configuration documentation: docs/configuration_status.md"

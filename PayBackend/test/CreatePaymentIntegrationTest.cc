@@ -280,7 +280,7 @@ DROGON_TEST(PayPlugin_CreatePayment_WechatError)
 
     const auto error = errorFuture.get();
     CHECK(error);  // Should have an error
-    // ✅ 修复：std::error_code::message() 返回原始错误消息，而不是 JSON 中包装的消息
+    // 修复：std::error_code::message() 返回原始错误消息，而不是 JSON 中包装的消息
     CHECK(error.message().find("missing appid/mchid/notify_url") != std::string::npos);
 
     std::string orderNo;

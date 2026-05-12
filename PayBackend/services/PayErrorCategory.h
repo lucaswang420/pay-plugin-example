@@ -33,7 +33,7 @@ class PayErrorCategory : public std::error_category
         return cat;
     }
 
-    // ✅ 按值传递字符串，确保拷贝存储
+    // 按值传递字符串，确保拷贝存储
     void setMessage(int code, std::string msg)
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -46,7 +46,7 @@ class PayErrorCategory : public std::error_category
     std::unordered_map<int, std::string> messages_;
 };
 
-// ✅ 按值传递，确保字符串内容被拷贝存储
+// 按值传递，确保字符串内容被拷贝存储
 inline std::error_code makePayError(int code, std::string message)
 {
     PayErrorCategory::instance().setMessage(code, std::move(message));

@@ -9,7 +9,7 @@ find_package(Drogon CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 set(TEST_SRC
-    CreatePaymentIntegrationTest.cc  # ✅ Updated to new API
+    CreatePaymentIntegrationTest.cc  # [PASS] Updated to new API
     ControllerMetricsTest.cc
     IdempotencyIntegrationTest.cc
     test_main.cc
@@ -18,9 +18,9 @@ set(TEST_SRC
     PayUtilsTest.cc
     QueryOrderTest.cc
     WechatPayClientTest.cc
-    WechatCallbackIntegrationTest.cc  # ✅ Updated to new API (Phase 3)
-    RefundQueryTest.cc  # ✅ Updated to new API (Phase 3)
-    ReconcileSummaryTest.cc  # ✅ Updated to new API (Phase 3)
+    WechatCallbackIntegrationTest.cc  # [PASS] Updated to new API (Phase 3)
+    RefundQueryTest.cc  # [PASS] Updated to new API (Phase 3)
+    ReconcileSummaryTest.cc  # [PASS] Updated to new API (Phase 3)
 )
 
 add_executable(

@@ -346,7 +346,7 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
     drogon::orm::Mapper<PayCallback> mapper(client);
 
     PayCallback row;
-    row.setPaymentNo(paymentNo);  // ✅ 使用已存在的 payment_no
+    row.setPaymentNo(paymentNo);  //  使用已存在的 payment_no
     row.setRawBody("{\"resource\":{}}");
     row.setSignature("sig");
     row.setSerialNo("serial");
