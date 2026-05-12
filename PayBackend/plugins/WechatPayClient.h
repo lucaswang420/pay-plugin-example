@@ -11,15 +11,12 @@
 class WechatPayClient
 {
   public:
-    using JsonCallback =
-        std::function<void(const Json::Value &result, const std::string &error)>;
+    using JsonCallback = std::function<void(const Json::Value &result, const std::string &error)>;
 
     explicit WechatPayClient(const Json::Value &config);
 
-    void createTransactionNative(const Json::Value &payload,
-                                 JsonCallback &&callback);
-    void queryTransaction(const std::string &orderNo,
-                          JsonCallback &&callback);
+    void createTransactionNative(const Json::Value &payload, JsonCallback &&callback);
+    void queryTransaction(const std::string &orderNo, JsonCallback &&callback);
     void refund(const Json::Value &payload, JsonCallback &&callback);
     void queryRefund(const std::string &refundNo, JsonCallback &&callback);
 
@@ -27,28 +24,41 @@ class WechatPayClient
     std::string getPlatformCert(const std::string &serialNo) const;
     void setPlatformCert(const std::string &serialNo, const std::string &certContent);
 
-    std::string buildAuthorizationHeader(const std::string &method,
-                                         const std::string &url,
-                                         const std::string &body,
-                                         const std::string &timestamp,
-                                         const std::string &nonce,
-                                         std::string &error) const;
+    std::string buildAuthorizationHeader(
+      const std::string &method,
+      const std::string &url,
+      const std::string &body,
+      const std::string &timestamp,
+      const std::string &nonce,
+      std::string &error
+    ) const;
 
-    bool verifyCallback(const std::string &timestamp,
-                        const std::string &nonce,
-                        const std::string &body,
-                        const std::string &signature,
-                        const std::string &serialNo,
-                        std::string &error) const;
+    bool verifyCallback(
+      const std::string &timestamp,
+      const std::string &nonce,
+      const std::string &body,
+      const std::string &signature,
+      const std::string &serialNo,
+      std::string &error
+    ) const;
 
-    bool decryptResource(const std::string &ciphertext,
-                         const std::string &nonce,
-                         const std::string &associatedData,
-                         std::string &plaintext,
-                         std::string &error) const;
+    bool decryptResource(
+      const std::string &ciphertext,
+      const std::string &nonce,
+      const std::string &associatedData,
+      std::string &plaintext,
+      std::string &error
+    ) const;
 
-    const std::string &getAppId() const { return appId_; }
-    const std::string &getMchId() const { return mchId_; }
+    const std::string &getAppId() const
+    {
+        return appId_;
+    }
+
+    const std::string &getMchId() const
+    {
+        return mchId_;
+    }
 
     // Check if client is properly configured with valid credentials
     bool isConfigured() const;

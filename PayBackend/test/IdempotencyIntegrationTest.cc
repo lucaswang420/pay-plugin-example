@@ -21,17 +21,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -68,8 +68,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -94,33 +94,36 @@ DROGON_TEST(PayIdempotency_DbUniqueKey)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     const std::string key = "test_" + drogon::utils::getUuid();
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
-        "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
-        "INTERVAL '1 day')",
-        key,
-        "hash",
-        "{}");
+      "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
+      "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
+      "INTERVAL '1 day')",
+      key,
+      "hash",
+      "{}"
+    );
 
     bool uniqueHit = false;
     try
     {
         client->execSqlSync(
-            "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
-            "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
-            "INTERVAL '1 day')",
-            key,
-            "hash2",
-            "{}");
+          "INSERT INTO pay_idempotency (idempotency_key, request_hash, "
+          "response_snapshot, expire_at) VALUES ($1, $2, $3, NOW() + "
+          "INTERVAL '1 day')",
+          key,
+          "hash2",
+          "{}"
+        );
     }
     catch (const drogon::orm::DrogonDbException &)
     {
@@ -129,8 +132,7 @@ DROGON_TEST(PayIdempotency_DbUniqueKey)
 
     CHECK(uniqueHit);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        key);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", key);
 }
 
 DROGON_TEST(PayIdempotency_RedisSetNx)
@@ -149,32 +151,30 @@ DROGON_TEST(PayIdempotency_RedisSetNx)
     const std::string username = redis.get("username", "").asString();
 
     trantor::InetAddress addr(host, static_cast<uint16_t>(port));
-    auto client = drogon::nosql::RedisClient::newRedisClient(
-        addr, 1, password, db, username);
+    auto client = drogon::nosql::RedisClient::newRedisClient(addr, 1, password, db, username);
     CHECK(client != nullptr);
 
     // Guard against hanging when redis is not reachable.
     auto pingPromise = std::make_shared<std::promise<bool>>();
     auto pingFuture = pingPromise->get_future();
     client->execCommandAsync(
-        [pingPromise](const drogon::nosql::RedisResult &r) {
-            try
-            {
-                pingPromise->set_value(r.asString() == "PONG");
-            }
-            catch (...)
-            {
-                pingPromise->set_value(false);
-            }
-        },
-        [pingPromise](const drogon::nosql::RedisException &) {
-            pingPromise->set_value(false);
-        },
-        "PING");
+      [pingPromise](const drogon::nosql::RedisResult &r) {
+          try
+          {
+              pingPromise->set_value(r.asString() == "PONG");
+          }
+          catch (...)
+          {
+              pingPromise->set_value(false);
+          }
+      },
+      [pingPromise](const drogon::nosql::RedisException &) { pingPromise->set_value(false); },
+      "PING"
+    );
 
-    if (pingFuture.wait_for(std::chrono::seconds(2)) !=
-            std::future_status::ready ||
-        !pingFuture.get())
+    if (
+      pingFuture.wait_for(std::chrono::seconds(2)) != std::future_status::ready || !pingFuture.get()
+    )
     {
         return;
     }
@@ -182,33 +182,34 @@ DROGON_TEST(PayIdempotency_RedisSetNx)
     const std::string key = "pay:test:idemp:" + drogon::utils::getUuid();
 
     const auto first = client->execCommandSync<std::string>(
-        [](const drogon::nosql::RedisResult &r) { return r.asString(); },
-        "SET %s %s NX EX %d",
-        key.c_str(),
-        "1",
-        60);
+      [](const drogon::nosql::RedisResult &r) { return r.asString(); },
+      "SET %s %s NX EX %d",
+      key.c_str(),
+      "1",
+      60
+    );
     CHECK(first == "OK");
 
     const auto second = client->execCommandSync<std::string>(
-        [](const drogon::nosql::RedisResult &r) {
-            if (r.type() == drogon::nosql::RedisResultType::kNil)
-            {
-                return std::string("NIL");
-            }
-            return r.asString();
-        },
-        "SET %s %s NX EX %d",
-        key.c_str(),
-        "1",
-        60);
+      [](const drogon::nosql::RedisResult &r) {
+          if (r.type() == drogon::nosql::RedisResultType::kNil)
+          {
+              return std::string("NIL");
+          }
+          return r.asString();
+      },
+      "SET %s %s NX EX %d",
+      key.c_str(),
+      "1",
+      60
+    );
     CHECK(second == "NIL");
 
     client->execCommandSync<int>(
-        [](const drogon::nosql::RedisResult &r) {
-            return static_cast<int>(r.asInteger());
-        },
-        "DEL %s",
-        key.c_str());
+      [](const drogon::nosql::RedisResult &r) { return static_cast<int>(r.asInteger()); },
+      "DEL %s",
+      key.c_str()
+    );
 }
 
 DROGON_TEST(PayIdempotency_OrmRoundTrip)
@@ -227,12 +228,13 @@ DROGON_TEST(PayIdempotency_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     using PayIdempotency = drogon_model::pay_test::PayIdempotency;
     drogon::orm::Mapper<PayIdempotency> mapper(client);
@@ -243,8 +245,7 @@ DROGON_TEST(PayIdempotency_OrmRoundTrip)
     row.setRequestHash("hash");
     row.setResponseSnapshot("{\"ok\":true}");
     const auto now = trantor::Date::now();
-    const auto expiresAt = trantor::Date(
-        now.microSecondsSinceEpoch() + 3600LL * 1000000LL);
+    const auto expiresAt = trantor::Date(now.microSecondsSinceEpoch() + 3600LL * 1000000LL);
     row.setExpireAt(expiresAt);
 
     mapper.insert(row);
@@ -273,42 +274,45 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) UNIQUE NOT NULL,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) UNIQUE NOT NULL,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL REFERENCES pay_order(order_no),"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL REFERENCES pay_order(order_no),"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL REFERENCES pay_payment(payment_no),"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL REFERENCES pay_payment(payment_no),"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     using PayOrder = drogon_model::pay_test::PayOrder;
     drogon::orm::Mapper<PayOrder> orderMapper(client);
@@ -383,17 +387,18 @@ DROGON_TEST(PayPayment_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     using PayPayment = drogon_model::pay_test::PayPayment;
     drogon::orm::Mapper<PayPayment> mapper(client);
@@ -433,10 +438,8 @@ DROGON_TEST(PayPayment_OrmRoundTrip)
     CHECK(fetched.getValueOfChannelTradeNo() == row.getValueOfChannelTradeNo());
     CHECK(fetched.getValueOfStatus() == "SUCCESS");
     CHECK(fetched.getValueOfAmount() == "12.34");
-    CHECK(fetched.getValueOfRequestPayload() ==
-          row.getValueOfRequestPayload());
-    CHECK(fetched.getValueOfResponsePayload() ==
-          row.getValueOfResponsePayload());
+    CHECK(fetched.getValueOfRequestPayload() == row.getValueOfRequestPayload());
+    CHECK(fetched.getValueOfResponsePayload() == row.getValueOfResponsePayload());
 
     mapper.deleteByPrimaryKey(id);
 }
@@ -457,16 +460,17 @@ DROGON_TEST(PayRefund_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     using PayRefund = drogon_model::pay_test::PayRefund;
     drogon::orm::Mapper<PayRefund> mapper(client);
@@ -517,8 +521,7 @@ DROGON_TEST(PayRefund_OrmRoundTrip)
     CHECK(fetched.getValueOfRefundNo() == refundNo);
     CHECK(fetched.getValueOfOrderNo() == orderNo);
     CHECK(fetched.getValueOfPaymentNo() == paymentNo);
-    CHECK(fetched.getValueOfChannelRefundNo() ==
-          row.getValueOfChannelRefundNo());
+    CHECK(fetched.getValueOfChannelRefundNo() == row.getValueOfChannelRefundNo());
     CHECK(fetched.getValueOfStatus() == "SUCCESS");
     CHECK(fetched.getValueOfAmount() == "5.67");
 
@@ -541,18 +544,19 @@ DROGON_TEST(PayOrder_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "expire_at TIMESTAMPTZ,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "expire_at TIMESTAMPTZ,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     using PayOrder = drogon_model::pay_test::PayOrder;
     drogon::orm::Mapper<PayOrder> mapper(client);
@@ -603,15 +607,16 @@ DROGON_TEST(PayLedger_OrmRoundTrip)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "balance DECIMAL(18,2),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "balance DECIMAL(18,2),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     using PayLedger = drogon_model::pay_test::PayLedger;
     drogon::orm::Mapper<PayLedger> mapper(client);

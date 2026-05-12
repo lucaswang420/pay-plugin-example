@@ -31,42 +31,43 @@
 #include <memory>
 #include <string>
 
-class IdempotencyService {
-public:
-    using CheckCallback = std::function<void(bool canProceed, const Json::Value& cachedResult)>;
+class IdempotencyService
+{
+  public:
+    using CheckCallback = std::function<void(bool canProceed, const Json::Value &cachedResult)>;
     using UpdateCallback = std::function<void()>;
 
     IdempotencyService(
-        std::shared_ptr<drogon::orm::DbClient> dbClient,
-        drogon::nosql::RedisClientPtr redisClient,
-        int64_t ttlSeconds = 604800  // 7 days default
+      std::shared_ptr<drogon::orm::DbClient> dbClient,
+      drogon::nosql::RedisClientPtr redisClient,
+      int64_t ttlSeconds = 604800  // 7 days default
     );
 
     // Check idempotency and optionally reserve key
     void checkAndSet(
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const Json::Value& request,
-        CheckCallback&& callback
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const Json::Value &request,
+      CheckCallback &&callback
     );
 
     // Update result after successful operation
     void updateResult(
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const Json::Value& response,
-        UpdateCallback&& callback = [](){}
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const Json::Value &response,
+      UpdateCallback &&callback = []() {}
     );
 
-private:
+  private:
     std::shared_ptr<drogon::orm::DbClient> dbClient_;
     drogon::nosql::RedisClientPtr redisClient_;
     int64_t ttlSeconds_;
 
     void checkDatabase(
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const Json::Value& request,
-        CheckCallback&& callback
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const Json::Value &request,
+      CheckCallback &&callback
     );
 };

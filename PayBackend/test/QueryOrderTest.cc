@@ -14,17 +14,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -61,8 +61,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -88,17 +88,18 @@ DROGON_TEST(PayPlugin_QueryOrder_NoWechatClient)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string amount = "19.99";
@@ -125,19 +126,18 @@ DROGON_TEST(PayPlugin_QueryOrder_NoWechatClient)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -170,17 +170,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatQueryError)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string amount = "29.99";
@@ -214,19 +215,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatQueryError)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     const auto result = resultFuture.get();
@@ -256,29 +256,31 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -321,19 +323,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -342,20 +343,16 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
-          std::string::npos);
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") != std::string::npos);
 
     // Order/payment status unchanged since WeChat query failed
-    const auto updatedOrder =
-        orderMapper.findByPrimaryKey(order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto updatedPayment =
-        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -375,29 +372,31 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -441,19 +440,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -462,21 +460,17 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatSuccess_PaymentAlreadySuccess)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
-          std::string::npos);
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") != std::string::npos);
 
     // Order/payment status unchanged since WeChat query failed
-    const auto updatedOrder =
-        orderMapper.findByPrimaryKey(order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto updatedPayment =
-        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "SUCCESS");
     CHECK(updatedPayment.getValueOfChannelTradeNo() == "wx_txn_prev");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -496,29 +490,31 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -561,19 +557,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -582,20 +577,16 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatUserPaying)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
-          std::string::npos);
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") != std::string::npos);
 
     // Order/payment status unchanged since WeChat query failed
-    const auto updatedOrder =
-        orderMapper.findByPrimaryKey(order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto updatedPayment =
-        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -615,29 +606,31 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -680,19 +673,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -701,20 +693,16 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatNotPay)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
-          std::string::npos);
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") != std::string::npos);
 
     // Order/payment status unchanged since WeChat query failed
-    const auto updatedOrder =
-        orderMapper.findByPrimaryKey(order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto updatedPayment =
-        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -734,29 +722,31 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatClosed)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -799,19 +789,18 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatClosed)
 
     auto paymentService = plugin.paymentService();
     paymentService->queryOrder(
-        orderNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      orderNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -820,19 +809,15 @@ DROGON_TEST(PayPlugin_QueryOrder_WechatClosed)
     CHECK(result.isMember("data"));
     CHECK(result["data"]["order_no"].asString() == orderNo);
     CHECK(result["data"]["status"].asString() == "PAYING");
-    CHECK(result["data"]["wechat_query_error"].asString().find("missing") !=
-          std::string::npos);
+    CHECK(result["data"]["wechat_query_error"].asString().find("missing") != std::string::npos);
 
     // Order/payment status unchanged since WeChat query failed
-    const auto updatedOrder =
-        orderMapper.findByPrimaryKey(order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto updatedPayment =
-        paymentMapper.findByPrimaryKey(payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }

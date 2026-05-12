@@ -36,9 +36,9 @@ class PayPlugin : public drogon::Plugin<PayPlugin>
     // Test support: Initialize services with test clients
     // NOTE: This method is for integration testing only
     void setTestClients(
-        std::shared_ptr<WechatPayClient> wechatClient,
-        std::shared_ptr<AlipaySandboxClient> alipayClient,
-        std::shared_ptr<drogon::orm::DbClient> dbClient
+      std::shared_ptr<WechatPayClient> wechatClient,
+      std::shared_ptr<AlipaySandboxClient> alipayClient,
+      std::shared_ptr<drogon::orm::DbClient> dbClient
     );
 
   private:

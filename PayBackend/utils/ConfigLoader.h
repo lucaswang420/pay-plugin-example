@@ -57,6 +57,5 @@ class ConfigLoader
      * - "__env_var__" -> Use key name as env var
      * - "__env_var:MY_VAR__" -> Use "MY_VAR" as env var
      */
-    static std::string parseEnvVarName(const std::string &placeholder,
-                                       const std::string &key);
+    static std::string parseEnvVarName(const std::string &placeholder, const std::string &key);
 };

@@ -6,8 +6,9 @@
 #include <chrono>
 
 void HealthCheckController::health(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -21,8 +22,8 @@ void HealthCheckController::health(
 
     // Get current timestamp
     auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
-        now.time_since_epoch()).count();
+    auto timestamp =
+      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
     response["timestamp"] = static_cast<Json::Int64>(timestamp);
 
     // Check database connectivity

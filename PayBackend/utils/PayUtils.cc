@@ -3,9 +3,7 @@
 
 namespace pay::utils
 {
-bool getRequiredString(const Json::Value &json,
-                       const char *key,
-                       std::string &value)
+bool getRequiredString(const Json::Value &json, const char *key, std::string &value)
 {
     if (!json.isMember(key))
     {
@@ -98,9 +96,11 @@ std::string toJsonString(const Json::Value &value)
     return Json::writeString(builder, value);
 }
 
-void mapTradeState(const std::string &tradeState,
-                   std::string &orderStatus,
-                   std::string &paymentStatus)
+void mapTradeState(
+  const std::string &tradeState,
+  std::string &orderStatus,
+  std::string &paymentStatus
+)
 {
     orderStatus = "FAILED";
     paymentStatus = "FAIL";
@@ -114,8 +114,7 @@ void mapTradeState(const std::string &tradeState,
         orderStatus = "PAYING";
         paymentStatus = "PROCESSING";
     }
-    else if (tradeState == "CLOSED" || tradeState == "REVOKED" ||
-             tradeState == "REFUND")
+    else if (tradeState == "CLOSED" || tradeState == "REVOKED" || tradeState == "REFUND")
     {
         orderStatus = "CLOSED";
         paymentStatus = "FAIL";

@@ -8,8 +8,9 @@
 using namespace drogon;
 
 void AlipayCallbackController::notify(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     LOG_DEBUG << "[ALIPAY_CALLBACK] Received notification";
 
@@ -21,18 +22,22 @@ void AlipayCallbackController::notify(
     std::stringstream ss(body);
     std::string pair;
 
-    while (std::getline(ss, pair, '&')) {
+    while (std::getline(ss, pair, '&'))
+    {
         size_t pos = pair.find('=');
-        if (pos != std::string::npos) {
+        if (pos != std::string::npos)
+        {
             std::string key = pair.substr(0, pos);
             std::string value = pair.substr(pos + 1);
 
             // URL decode
-            char* decoded = new char[value.length() + 1];
+            char *decoded = new char[value.length() + 1];
             std::strncpy(decoded, value.c_str(), value.length() + 1);
             // 简单处理：将+替换为空格，%XX需要进一步解码
-            for (size_t i = 0; i < value.length(); ++i) {
-                if (decoded[i] == '+') decoded[i] = ' ';
+            for (size_t i = 0; i < value.length(); ++i)
+            {
+                if (decoded[i] == '+')
+                    decoded[i] = ' ';
             }
             params[key] = decoded;
             delete[] decoded;
@@ -50,10 +55,8 @@ void AlipayCallbackController::notify(
     std::string notifyType = params["notify_type"];
     std::string notifyId = params["notify_id"];
 
-    LOG_DEBUG << "[ALIPAY_CALLBACK] out_trade_no=" << outTradeNo
-              << " trade_no=" << tradeNo
-              << " trade_status=" << tradeStatus
-              << " total_amount=" << totalAmount;
+    LOG_DEBUG << "[ALIPAY_CALLBACK] out_trade_no=" << outTradeNo << " trade_no=" << tradeNo
+              << " trade_status=" << tradeStatus << " total_amount=" << totalAmount;
 
     // 构建JSON响应格式的result对象，供syncOrderStatusFromAlipay使用
     Json::Value alipayResult;
@@ -75,24 +78,23 @@ void AlipayCallbackController::notify(
 
     // 调用syncOrderStatusFromAlipay更新数据库
     paymentService->syncOrderStatusFromAlipay(
-        outTradeNo,
-        alipayResult,
-        [callback, outTradeNo, tradeStatus](const std::string &status) {
-            LOG_DEBUG << "[ALIPAY_CALLBACK] Sync completed for order " << outTradeNo
-                      << " status=" << status;
+      outTradeNo, alipayResult, [callback, outTradeNo, tradeStatus](const std::string &status) {
+          LOG_DEBUG << "[ALIPAY_CALLBACK] Sync completed for order " << outTradeNo
+                    << " status=" << status;
 
-            // 返回success响应给支付宝
-            Json::Value response;
-            response["code"] = "SUCCESS";
-            response["message"] = "OK";
+          // 返回success响应给支付宝
+          Json::Value response;
+          response["code"] = "SUCCESS";
+          response["message"] = "OK";
 
-            LOG_INFO << "[AlipayCallback] Callback processed successfully: order_no=" << outTradeNo
-                     << ", trade_status=" << tradeStatus << ", synced_status=" << status;
+          LOG_INFO << "[AlipayCallback] Callback processed successfully: order_no=" << outTradeNo
+                   << ", trade_status=" << tradeStatus << ", synced_status=" << status;
 
-            auto resp = HttpResponse::newHttpJsonResponse(response);
-            resp->setContentTypeString("application/json");
-            resp->addHeader("Content-Type", "application/json; charset=utf-8");
+          auto resp = HttpResponse::newHttpJsonResponse(response);
+          resp->setContentTypeString("application/json");
+          resp->addHeader("Content-Type", "application/json; charset=utf-8");
 
-            callback(resp);
-        });
+          callback(resp);
+      }
+    );
 }

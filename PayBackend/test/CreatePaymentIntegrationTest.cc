@@ -22,17 +22,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -68,8 +68,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -101,8 +101,7 @@ bool writeTempPrivateKey(const std::filesystem::path &path)
         return false;
     }
 
-    if (BN_set_word(bn, RSA_F4) != 1 ||
-        RSA_generate_key_ex(rsa, 2048, bn, nullptr) != 1)
+    if (BN_set_word(bn, RSA_F4) != 1 || RSA_generate_key_ex(rsa, 2048, bn, nullptr) != 1)
     {
         BN_free(bn);
         RSA_free(rsa);
@@ -132,8 +131,7 @@ bool writeTempPrivateKey(const std::filesystem::path &path)
         EVP_PKEY_free(pkey);
         return false;
     }
-    if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr,
-                                 nullptr) != 1)
+    if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr) != 1)
     {
         BIO_free(bio);
         EVP_PKEY_free(pkey);
@@ -155,69 +153,67 @@ bool writeTempPrivateKey(const std::filesystem::path &path)
     return static_cast<bool>(out);
 }
 
-void ensureCreatePaymentTables(
-    const std::shared_ptr<drogon::orm::DbClient> &client)
+void ensureCreatePaymentTables(const std::shared_ptr<drogon::orm::DbClient> &client)
 {
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "expire_at TIMESTAMPTZ,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "expire_at TIMESTAMPTZ,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 }
 
 bool waitForOrderStatus(
-    const std::shared_ptr<drogon::orm::DbClient> &client,
-    const std::string &title,
-    std::string &orderNo,
-    const std::string &orderStatus,
-    const std::string &paymentStatus)
+  const std::shared_ptr<drogon::orm::DbClient> &client,
+  const std::string &title,
+  std::string &orderNo,
+  const std::string &orderStatus,
+  const std::string &paymentStatus
+)
 {
     for (int i = 0; i < 40; ++i)
     {
-        const auto orderRows = client->execSqlSync(
-            "SELECT order_no, status FROM pay_order WHERE title = $1",
-            title);
+        const auto orderRows =
+          client->execSqlSync("SELECT order_no, status FROM pay_order WHERE title = $1", title);
         if (!orderRows.empty())
         {
             orderNo = orderRows.front()["order_no"].as<std::string>();
-            const auto currentOrderStatus =
-                orderRows.front()["status"].as<std::string>();
-            const auto paymentRows = client->execSqlSync(
-                "SELECT status FROM pay_payment WHERE order_no = $1",
-                orderNo);
+            const auto currentOrderStatus = orderRows.front()["status"].as<std::string>();
+            const auto paymentRows =
+              client->execSqlSync("SELECT status FROM pay_payment WHERE order_no = $1", orderNo);
             if (!paymentRows.empty())
             {
-                const auto currentPaymentStatus =
-                    paymentRows.front()["status"].as<std::string>();
-                if (currentOrderStatus == orderStatus &&
-                    currentPaymentStatus == paymentStatus)
+                const auto currentPaymentStatus = paymentRows.front()["status"].as<std::string>();
+                if (currentOrderStatus == orderStatus && currentPaymentStatus == paymentStatus)
                 {
                     return true;
                 }
@@ -268,12 +264,13 @@ DROGON_TEST(PayPlugin_CreatePayment_WechatError)
 
     auto paymentService = plugin.paymentService();
     paymentService->createPayment(
-        request,
-        "",
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -330,12 +327,13 @@ DROGON_TEST(PayPlugin_CreatePayment_WechatSuccess)
 
     auto paymentService = plugin.paymentService();
     paymentService->createPayment(
-        request,
-        "",
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -411,24 +409,26 @@ DROGON_TEST(PayPlugin_CreatePayment_IdempotencySnapshot)
     const std::string snapshotBody = pay::utils::toJsonString(snapshot);
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        idempotencyKey,
-        requestHash,
-        snapshotBody);
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      idempotencyKey,
+      requestHash,
+      snapshotBody
+    );
 
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
 
     auto paymentService = plugin.paymentService();
     paymentService->createPayment(
-        request,
-        idempotencyKey,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -444,14 +444,12 @@ DROGON_TEST(PayPlugin_CreatePayment_IdempotencySnapshot)
     CHECK(result["payment_no"].asString() == "prev_payment");
     CHECK(result["status"].asString() == "PAYING");
 
-    const auto countRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_order WHERE title = $1",
-        title);
+    const auto countRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_order WHERE title = $1", title);
     CHECK(!countRows.empty());
     CHECK(countRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        idempotencyKey);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", idempotencyKey);
 }
 
 DROGON_TEST(PayPlugin_CreatePayment_IdempotencyConflict)
@@ -490,24 +488,26 @@ DROGON_TEST(PayPlugin_CreatePayment_IdempotencyConflict)
     request.description = title;
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        idempotencyKey,
-        "other_hash",
-        "{}");
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      idempotencyKey,
+      "other_hash",
+      "{}"
+    );
 
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
 
     auto paymentService = plugin.paymentService();
     paymentService->createPayment(
-        request,
-        idempotencyKey,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -519,12 +519,10 @@ DROGON_TEST(PayPlugin_CreatePayment_IdempotencyConflict)
     CHECK(error);  // Should have an error
     CHECK(error.message().find("idempotency key conflict") != std::string::npos);
 
-    const auto countRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_order WHERE title = $1",
-        title);
+    const auto countRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_order WHERE title = $1", title);
     CHECK(!countRows.empty());
     CHECK(countRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        idempotencyKey);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", idempotencyKey);
 }

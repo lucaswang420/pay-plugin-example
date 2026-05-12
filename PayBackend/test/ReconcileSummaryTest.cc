@@ -14,17 +14,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -61,8 +61,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -87,54 +87,55 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
-    const auto baseOrderRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_order WHERE status = $1",
-        "PAYING");
+    const auto baseOrderRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_order WHERE status = $1", "PAYING");
     const int64_t basePaying =
-        baseOrderRows.empty() ? 0 : baseOrderRows.front()["cnt"].as<int64_t>();
+      baseOrderRows.empty() ? 0 : baseOrderRows.front()["cnt"].as<int64_t>();
 
     const auto baseRefundRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE status IN ($1, $2)",
-        "REFUND_INIT",
-        "REFUNDING");
+      "SELECT COUNT(*) AS cnt FROM pay_refund WHERE status IN ($1, $2)", "REFUND_INIT", "REFUNDING"
+    );
     const int64_t baseRefunding =
-        baseRefundRows.empty() ? 0 : baseRefundRows.front()["cnt"].as<int64_t>();
+      baseRefundRows.empty() ? 0 : baseRefundRows.front()["cnt"].as<int64_t>();
 
     using PayOrder = drogon_model::pay_test::PayOrder;
     drogon::orm::Mapper<PayOrder> orderMapper(client);
@@ -174,26 +175,30 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
         return payment;
     };
 
-    auto makeRefund = [&](const std::string &status, const std::string &orderNo, const std::string &paymentNo) {
-        PayRefund refund;
-        refund.setRefundNo("refund_" + drogon::utils::getUuid());
-        refund.setOrderNo(orderNo);
-        refund.setPaymentNo(paymentNo);
-        refund.setStatus(status);
-        refund.setAmount("9.99");
-        refund.setCreatedAt(trantor::Date::now());
-        refund.setUpdatedAt(trantor::Date::now());
-        refundMapper.insert(refund);
-        return refund;
-    };
+    auto makeRefund =
+      [&](const std::string &status, const std::string &orderNo, const std::string &paymentNo) {
+          PayRefund refund;
+          refund.setRefundNo("refund_" + drogon::utils::getUuid());
+          refund.setOrderNo(orderNo);
+          refund.setPaymentNo(paymentNo);
+          refund.setStatus(status);
+          refund.setAmount("9.99");
+          refund.setCreatedAt(trantor::Date::now());
+          refund.setUpdatedAt(trantor::Date::now());
+          refundMapper.insert(refund);
+          return refund;
+      };
 
     auto payForPaying1 = makePayment(paying1.getValueOfOrderNo(), "SUCCESS");
     auto payForPaying2 = makePayment(paying2.getValueOfOrderNo(), "SUCCESS");
     auto payForPaid = makePayment(paid.getValueOfOrderNo(), "SUCCESS");
 
-    auto refundInit = makeRefund("REFUND_INIT", paying1.getValueOfOrderNo(), payForPaying1.getValueOfPaymentNo());
-    auto refunding = makeRefund("REFUNDING", paying2.getValueOfOrderNo(), payForPaying2.getValueOfPaymentNo());
-    auto refundDone = makeRefund("REFUND_SUCCESS", paid.getValueOfOrderNo(), payForPaid.getValueOfPaymentNo());
+    auto refundInit =
+      makeRefund("REFUND_INIT", paying1.getValueOfOrderNo(), payForPaying1.getValueOfPaymentNo());
+    auto refunding =
+      makeRefund("REFUNDING", paying2.getValueOfOrderNo(), payForPaying2.getValueOfPaymentNo());
+    auto refundDone =
+      makeRefund("REFUND_SUCCESS", paid.getValueOfOrderNo(), payForPaid.getValueOfPaymentNo());
 
     PayPlugin plugin;
     plugin.setTestClients(nullptr, nullptr, client);
@@ -207,11 +212,12 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
 
     auto paymentService = plugin.paymentService();
     paymentService->reconcileSummary(
-        date,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      date,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -228,22 +234,22 @@ DROGON_TEST(PayPlugin_ReconcileSummary)
     CHECK(data["paying_orders"].asInt() == basePaying + 2);
     CHECK(data["refunding_refunds"].asInt() == baseRefunding + 2);
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundInit.getValueOfRefundNo());
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refunding.getValueOfRefundNo());
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundDone.getValueOfRefundNo());
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        payForPaying1.getValueOfPaymentNo());
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        payForPaying2.getValueOfPaymentNo());
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        payForPaid.getValueOfPaymentNo());
-    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
-                        paying1.getValueOfOrderNo());
-    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
-                        paying2.getValueOfOrderNo());
-    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
-                        paid.getValueOfOrderNo());
+    client
+      ->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundInit.getValueOfRefundNo());
+    client
+      ->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refunding.getValueOfRefundNo());
+    client
+      ->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundDone.getValueOfRefundNo());
+    client->execSqlSync(
+      "DELETE FROM pay_payment WHERE payment_no = $1", payForPaying1.getValueOfPaymentNo()
+    );
+    client->execSqlSync(
+      "DELETE FROM pay_payment WHERE payment_no = $1", payForPaying2.getValueOfPaymentNo()
+    );
+    client->execSqlSync(
+      "DELETE FROM pay_payment WHERE payment_no = $1", payForPaid.getValueOfPaymentNo()
+    );
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", paying1.getValueOfOrderNo());
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", paying2.getValueOfOrderNo());
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", paid.getValueOfOrderNo());
 }

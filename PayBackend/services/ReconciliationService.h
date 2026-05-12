@@ -34,24 +34,23 @@
 #include <string>
 #include <trantor/net/EventLoop.h>
 
-class ReconciliationService {
-public:
+class ReconciliationService
+{
+  public:
     ReconciliationService(
-        std::shared_ptr<PaymentService> paymentService,
-        std::shared_ptr<RefundService> refundService,
-        std::shared_ptr<WechatPayClient> wechatClient,
-        std::shared_ptr<AlipaySandboxClient> alipayClient,
-        std::shared_ptr<drogon::orm::DbClient> dbClient
+      std::shared_ptr<PaymentService> paymentService,
+      std::shared_ptr<RefundService> refundService,
+      std::shared_ptr<WechatPayClient> wechatClient,
+      std::shared_ptr<AlipaySandboxClient> alipayClient,
+      std::shared_ptr<drogon::orm::DbClient> dbClient
     );
 
     void startReconcileTimer();
     void stopReconcileTimer();
 
-    void reconcile(
-        std::function<void(int success, int failed)>&& callback
-    );
+    void reconcile(std::function<void(int success, int failed)> &&callback);
 
-private:
+  private:
     void syncPendingWeChatOrders();
     void syncPendingAlipayOrders();
     void syncPendingRefunds();

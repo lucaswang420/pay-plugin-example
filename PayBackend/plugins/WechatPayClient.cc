@@ -17,15 +17,16 @@ std::string readFile(const std::string &path, std::string &error)
         error = "failed to open file: " + path;
         return {};
     }
-    std::string content((std::istreambuf_iterator<char>(in)),
-                        std::istreambuf_iterator<char>());
+    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     return content;
 }
 
-bool signMessage(const std::string &message,
-                 const std::string &privateKeyPath,
-                 std::string &signatureB64,
-                 std::string &error)
+bool signMessage(
+  const std::string &message,
+  const std::string &privateKeyPath,
+  std::string &signatureB64,
+  std::string &error
+)
 {
     std::string keyError;
     std::string keyContent = readFile(privateKeyPath, keyError);
@@ -35,16 +36,14 @@ bool signMessage(const std::string &message,
         return false;
     }
 
-    BIO *bio = BIO_new_mem_buf(keyContent.data(),
-                               static_cast<int>(keyContent.size()));
+    BIO *bio = BIO_new_mem_buf(keyContent.data(), static_cast<int>(keyContent.size()));
     if (!bio)
     {
         error = "failed to create BIO for private key";
         return false;
     }
 
-    EVP_PKEY *pkey =
-        PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
+    EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
     BIO_free(bio);
     if (!pkey)
     {
@@ -86,9 +85,7 @@ bool signMessage(const std::string &message,
     }
 
     std::string signature(sigLen, '\0');
-    if (EVP_DigestSignFinal(ctx,
-                            reinterpret_cast<unsigned char *>(&signature[0]),
-                            &sigLen) != 1)
+    if (EVP_DigestSignFinal(ctx, reinterpret_cast<unsigned char *>(&signature[0]), &sigLen) != 1)
     {
         EVP_MD_CTX_free(ctx);
         EVP_PKEY_free(pkey);
@@ -104,10 +101,12 @@ bool signMessage(const std::string &message,
     return true;
 }
 
-bool verifyMessageWithCert(const std::string &message,
-                           const std::string &signatureB64,
-                           const std::string &certContent,
-                           std::string &error)
+bool verifyMessageWithCert(
+  const std::string &message,
+  const std::string &signatureB64,
+  const std::string &certContent,
+  std::string &error
+)
 {
     if (certContent.empty())
     {
@@ -115,8 +114,7 @@ bool verifyMessageWithCert(const std::string &message,
         return false;
     }
 
-    BIO *bio = BIO_new_mem_buf(certContent.data(),
-                               static_cast<int>(certContent.size()));
+    BIO *bio = BIO_new_mem_buf(certContent.data(), static_cast<int>(certContent.size()));
     if (!bio)
     {
         error = "failed to create BIO for cert";
@@ -172,9 +170,8 @@ bool verifyMessageWithCert(const std::string &message,
     }
 
     int ok = EVP_DigestVerifyFinal(
-        ctx,
-        reinterpret_cast<const unsigned char *>(signature.data()),
-        signature.size());
+      ctx, reinterpret_cast<const unsigned char *>(signature.data()), signature.size()
+    );
     EVP_MD_CTX_free(ctx);
     EVP_PKEY_free(pkey);
 
@@ -186,12 +183,14 @@ bool verifyMessageWithCert(const std::string &message,
     return true;
 }
 
-bool decryptAesGcm(const std::string &ciphertextB64,
-                   const std::string &nonce,
-                   const std::string &aad,
-                   const std::string &apiV3Key,
-                   std::string &plaintext,
-                   std::string &error)
+bool decryptAesGcm(
+  const std::string &ciphertextB64,
+  const std::string &nonce,
+  const std::string &aad,
+  const std::string &apiV3Key,
+  std::string &plaintext,
+  std::string &error
+)
 {
     if (apiV3Key.size() != 32)
     {
@@ -208,8 +207,7 @@ bool decryptAesGcm(const std::string &ciphertextB64,
 
     const size_t tagLen = 16;
     const size_t textLen = ciphertext.size() - tagLen;
-    const unsigned char *tag =
-        reinterpret_cast<const unsigned char *>(ciphertext.data() + textLen);
+    const unsigned char *tag = reinterpret_cast<const unsigned char *>(ciphertext.data() + textLen);
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -218,26 +216,31 @@ bool decryptAesGcm(const std::string &ciphertextB64,
         return false;
     }
 
-    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) !=
-        1)
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
         error = "EVP_DecryptInit_ex failed";
         return false;
     }
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()),
-                            nullptr) != 1)
+    if (
+      EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()), nullptr) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         error = "set iv len failed";
         return false;
     }
 
-    if (EVP_DecryptInit_ex(
-            ctx, nullptr, nullptr,
-            reinterpret_cast<const unsigned char *>(apiV3Key.data()),
-            reinterpret_cast<const unsigned char *>(nonce.data())) != 1)
+    if (
+      EVP_DecryptInit_ex(
+        ctx,
+        nullptr,
+        nullptr,
+        reinterpret_cast<const unsigned char *>(apiV3Key.data()),
+        reinterpret_cast<const unsigned char *>(nonce.data())
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         error = "set key/iv failed";
@@ -247,9 +250,15 @@ bool decryptAesGcm(const std::string &ciphertextB64,
     int outLen = 0;
     if (!aad.empty())
     {
-        if (EVP_DecryptUpdate(ctx, nullptr, &outLen,
-                              reinterpret_cast<const unsigned char *>(aad.data()),
-                              static_cast<int>(aad.size())) != 1)
+        if (
+          EVP_DecryptUpdate(
+            ctx,
+            nullptr,
+            &outLen,
+            reinterpret_cast<const unsigned char *>(aad.data()),
+            static_cast<int>(aad.size())
+          ) != 1
+        )
         {
             EVP_CIPHER_CTX_free(ctx);
             error = "set aad failed";
@@ -258,12 +267,15 @@ bool decryptAesGcm(const std::string &ciphertextB64,
     }
 
     plaintext.resize(textLen);
-    if (EVP_DecryptUpdate(
-            ctx,
-            reinterpret_cast<unsigned char *>(&plaintext[0]),
-            &outLen,
-            reinterpret_cast<const unsigned char *>(ciphertext.data()),
-            static_cast<int>(textLen)) != 1)
+    if (
+      EVP_DecryptUpdate(
+        ctx,
+        reinterpret_cast<unsigned char *>(&plaintext[0]),
+        &outLen,
+        reinterpret_cast<const unsigned char *>(ciphertext.data()),
+        static_cast<int>(textLen)
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         error = "decrypt update failed";
@@ -271,15 +283,17 @@ bool decryptAesGcm(const std::string &ciphertextB64,
     }
     int totalLen = outLen;
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, tagLen,
-                            const_cast<unsigned char *>(tag)) != 1)
+    if (
+      EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, tagLen, const_cast<unsigned char *>(tag)) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         error = "set tag failed";
         return false;
     }
 
-    int finalOk = EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&plaintext[totalLen]), &outLen);
+    int finalOk =
+      EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&plaintext[totalLen]), &outLen);
     EVP_CIPHER_CTX_free(ctx);
     if (finalOk != 1)
     {
@@ -297,12 +311,14 @@ std::string toJsonString(const Json::Value &value)
     return Json::writeString(builder, value);
 }
 
-void sendWechatRequest(const std::string &apiBase,
-                       const std::string &method,
-                       const std::string &path,
-                       const std::string &body,
-                       const std::string &authHeader,
-                       WechatPayClient::JsonCallback &&callback)
+void sendWechatRequest(
+  const std::string &apiBase,
+  const std::string &method,
+  const std::string &path,
+  const std::string &body,
+  const std::string &authHeader,
+  WechatPayClient::JsonCallback &&callback
+)
 {
     auto client = drogon::HttpClient::newHttpClient(apiBase);
     auto req = drogon::HttpRequest::newHttpRequest();
@@ -328,43 +344,36 @@ void sendWechatRequest(const std::string &apiBase,
     req->addHeader("User-Agent", "PayPlugin/1.0");
     req->addHeader("Authorization", authHeader);
 
-    auto cb = std::make_shared<WechatPayClient::JsonCallback>(
-        std::move(callback));
+    auto cb = std::make_shared<WechatPayClient::JsonCallback>(std::move(callback));
 
-    client->sendRequest(
-        req, [cb](drogon::ReqResult result,
-                  const drogon::HttpResponsePtr &resp) {
-            Json::Value bodyJson;
-            if (result != drogon::ReqResult::Ok || !resp)
-            {
-                (*cb)(bodyJson, "http request failed");
-                return;
-            }
+    client->sendRequest(req, [cb](drogon::ReqResult result, const drogon::HttpResponsePtr &resp) {
+        Json::Value bodyJson;
+        if (result != drogon::ReqResult::Ok || !resp)
+        {
+            (*cb)(bodyJson, "http request failed");
+            return;
+        }
 
-            auto json = resp->getJsonObject();
-            if (json)
-            {
-                (*cb)(*json, "");
-                return;
-            }
+        auto json = resp->getJsonObject();
+        if (json)
+        {
+            (*cb)(*json, "");
+            return;
+        }
 
-            Json::CharReaderBuilder builder;
-            std::unique_ptr<Json::CharReader> reader(
-                builder.newCharReader());
-            std::string errors;
-            const auto body = resp->body();
-            if (!reader->parse(body.data(),
-                               body.data() + body.size(),
-                               &bodyJson,
-                               &errors))
-            {
-                (*cb)(bodyJson, "invalid json response");
-                return;
-            }
-            (*cb)(bodyJson, "");
-        });
+        Json::CharReaderBuilder builder;
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        std::string errors;
+        const auto body = resp->body();
+        if (!reader->parse(body.data(), body.data() + body.size(), &bodyJson, &errors))
+        {
+            (*cb)(bodyJson, "invalid json response");
+            return;
+        }
+        (*cb)(bodyJson, "");
+    });
 }
-} // namespace
+}  // namespace
 
 WechatPayClient::WechatPayClient(const Json::Value &config) : config_(config)
 {
@@ -376,16 +385,14 @@ WechatPayClient::WechatPayClient(const Json::Value &config) : config_(config)
     platformCertPath_ = config.get("platform_cert_path", "").asString();
     apiBase_ = config.get("api_base", "https://api.mch.weixin.qq.com").asString();
     notifyUrl_ = config.get("notify_url", "").asString();
-    certDownloadMinIntervalSeconds_ =
-        config.get("cert_download_min_interval_seconds", 300).asInt();
+    certDownloadMinIntervalSeconds_ = config.get("cert_download_min_interval_seconds", 300).asInt();
     if (certDownloadMinIntervalSeconds_ < 0)
     {
         certDownloadMinIntervalSeconds_ = 0;
     }
 }
 
-void WechatPayClient::createTransactionNative(const Json::Value &payload,
-                                              JsonCallback &&callback)
+void WechatPayClient::createTransactionNative(const Json::Value &payload, JsonCallback &&callback)
 {
     Json::Value request = payload;
     if (request.get("appid", "").asString().empty())
@@ -401,9 +408,10 @@ void WechatPayClient::createTransactionNative(const Json::Value &payload,
         request["notify_url"] = notifyUrl_;
     }
 
-    if (request.get("appid", "").asString().empty() ||
-        request.get("mchid", "").asString().empty() ||
-        request.get("notify_url", "").asString().empty())
+    if (
+      request.get("appid", "").asString().empty() || request.get("mchid", "").asString().empty() ||
+      request.get("notify_url", "").asString().empty()
+    )
     {
         Json::Value result;
         callback(result, "missing appid/mchid/notify_url");
@@ -416,8 +424,7 @@ void WechatPayClient::createTransactionNative(const Json::Value &payload,
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string nonce = drogon::utils::getUuid();
     std::string error;
-    std::string auth = buildAuthorizationHeader(
-        "POST", path, body, timestamp, nonce, error);
+    std::string auth = buildAuthorizationHeader("POST", path, body, timestamp, nonce, error);
     if (!error.empty())
     {
         Json::Value result;
@@ -425,8 +432,7 @@ void WechatPayClient::createTransactionNative(const Json::Value &payload,
         return;
     }
 
-    sendWechatRequest(apiBase_, "POST", path, body, auth,
-                      std::move(callback));
+    sendWechatRequest(apiBase_, "POST", path, body, auth, std::move(callback));
 }
 
 void WechatPayClient::downloadCertificates(JsonCallback &&callback)
@@ -438,9 +444,7 @@ void WechatPayClient::downloadCertificates(JsonCallback &&callback)
         if (lastCertDownloadAt_.time_since_epoch().count() != 0)
         {
             const auto elapsed =
-                std::chrono::duration_cast<std::chrono::seconds>(
-                    now - lastCertDownloadAt_)
-                    .count();
+              std::chrono::duration_cast<std::chrono::seconds>(now - lastCertDownloadAt_).count();
             if (elapsed < certDownloadMinIntervalSeconds_)
             {
                 Json::Value result;
@@ -459,45 +463,55 @@ void WechatPayClient::downloadCertificates(JsonCallback &&callback)
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string nonce = drogon::utils::getUuid();
     std::string error;
-    std::string auth = buildAuthorizationHeader(
-        "GET", path, body, timestamp, nonce, error);
+    std::string auth = buildAuthorizationHeader("GET", path, body, timestamp, nonce, error);
     if (!error.empty())
     {
         Json::Value result;
-        if (callback) callback(result, error);
+        if (callback)
+            callback(result, error);
         return;
     }
 
     auto cb = std::make_shared<JsonCallback>(std::move(callback));
-    sendWechatRequest(apiBase_, "GET", path, body, auth,
-        [this, cb](const Json::Value &result, const std::string &err) {
-            if (!err.empty())
-            {
-                if (*cb) (*cb)(result, err);
-                return;
-            }
-            if (!result.isMember("data") || !result["data"].isArray())
-            {
-                if (*cb) (*cb)(result, "invalid certificate response format");
-                return;
-            }
-            for (const auto &certNode : result["data"])
-            {
-                std::string serialNo = certNode.get("serial_no", "").asString();
-                auto encNode = certNode["encrypt_certificate"];
-                if (serialNo.empty() || encNode.isNull()) continue;
-                std::string ciphertext = encNode.get("ciphertext", "").asString();
-                std::string nonceStr = encNode.get("nonce", "").asString();
-                std::string associatedData = encNode.get("associated_data", "").asString();
-                std::string plaintext;
-                std::string decryptErr;
-                if (decryptResource(ciphertext, nonceStr, associatedData, plaintext, decryptErr))
-                {
-                    setPlatformCert(serialNo, plaintext);
-                }
-            }
-            if (*cb) (*cb)(result, "");
-        });
+    sendWechatRequest(
+      apiBase_,
+      "GET",
+      path,
+      body,
+      auth,
+      [this, cb](const Json::Value &result, const std::string &err) {
+          if (!err.empty())
+          {
+              if (*cb)
+                  (*cb)(result, err);
+              return;
+          }
+          if (!result.isMember("data") || !result["data"].isArray())
+          {
+              if (*cb)
+                  (*cb)(result, "invalid certificate response format");
+              return;
+          }
+          for (const auto &certNode : result["data"])
+          {
+              std::string serialNo = certNode.get("serial_no", "").asString();
+              auto encNode = certNode["encrypt_certificate"];
+              if (serialNo.empty() || encNode.isNull())
+                  continue;
+              std::string ciphertext = encNode.get("ciphertext", "").asString();
+              std::string nonceStr = encNode.get("nonce", "").asString();
+              std::string associatedData = encNode.get("associated_data", "").asString();
+              std::string plaintext;
+              std::string decryptErr;
+              if (decryptResource(ciphertext, nonceStr, associatedData, plaintext, decryptErr))
+              {
+                  setPlatformCert(serialNo, plaintext);
+              }
+          }
+          if (*cb)
+              (*cb)(result, "");
+      }
+    );
 }
 
 std::string WechatPayClient::getPlatformCert(const std::string &serialNo) const
@@ -517,8 +531,7 @@ void WechatPayClient::setPlatformCert(const std::string &serialNo, const std::st
     platformCerts_[serialNo] = certContent;
 }
 
-void WechatPayClient::queryTransaction(const std::string &orderNo,
-                                       JsonCallback &&callback)
+void WechatPayClient::queryTransaction(const std::string &orderNo, JsonCallback &&callback)
 {
     if (orderNo.empty())
     {
@@ -533,14 +546,12 @@ void WechatPayClient::queryTransaction(const std::string &orderNo,
         return;
     }
 
-    const std::string path =
-        "/v3/pay/transactions/out-trade-no/" + orderNo + "?mchid=" + mchId_;
+    const std::string path = "/v3/pay/transactions/out-trade-no/" + orderNo + "?mchid=" + mchId_;
     const std::string body;
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string nonce = drogon::utils::getUuid();
     std::string error;
-    std::string auth = buildAuthorizationHeader(
-        "GET", path, body, timestamp, nonce, error);
+    std::string auth = buildAuthorizationHeader("GET", path, body, timestamp, nonce, error);
     if (!error.empty())
     {
         Json::Value result;
@@ -548,12 +559,10 @@ void WechatPayClient::queryTransaction(const std::string &orderNo,
         return;
     }
 
-    sendWechatRequest(apiBase_, "GET", path, body, auth,
-                      std::move(callback));
+    sendWechatRequest(apiBase_, "GET", path, body, auth, std::move(callback));
 }
 
-void WechatPayClient::refund(const Json::Value &payload,
-                             JsonCallback &&callback)
+void WechatPayClient::refund(const Json::Value &payload, JsonCallback &&callback)
 {
     Json::Value request = payload;
     if (request.get("notify_url", "").asString().empty())
@@ -566,8 +575,7 @@ void WechatPayClient::refund(const Json::Value &payload,
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string nonce = drogon::utils::getUuid();
     std::string error;
-    std::string auth = buildAuthorizationHeader(
-        "POST", path, body, timestamp, nonce, error);
+    std::string auth = buildAuthorizationHeader("POST", path, body, timestamp, nonce, error);
     if (!error.empty())
     {
         Json::Value result;
@@ -575,12 +583,10 @@ void WechatPayClient::refund(const Json::Value &payload,
         return;
     }
 
-    sendWechatRequest(apiBase_, "POST", path, body, auth,
-                      std::move(callback));
+    sendWechatRequest(apiBase_, "POST", path, body, auth, std::move(callback));
 }
 
-void WechatPayClient::queryRefund(const std::string &refundNo,
-                                  JsonCallback &&callback)
+void WechatPayClient::queryRefund(const std::string &refundNo, JsonCallback &&callback)
 {
     if (refundNo.empty())
     {
@@ -594,8 +600,7 @@ void WechatPayClient::queryRefund(const std::string &refundNo,
     const std::string timestamp = std::to_string(std::time(nullptr));
     const std::string nonce = drogon::utils::getUuid();
     std::string error;
-    std::string auth = buildAuthorizationHeader(
-        "GET", path, body, timestamp, nonce, error);
+    std::string auth = buildAuthorizationHeader("GET", path, body, timestamp, nonce, error);
     if (!error.empty())
     {
         Json::Value result;
@@ -603,17 +608,17 @@ void WechatPayClient::queryRefund(const std::string &refundNo,
         return;
     }
 
-    sendWechatRequest(apiBase_, "GET", path, body, auth,
-                      std::move(callback));
+    sendWechatRequest(apiBase_, "GET", path, body, auth, std::move(callback));
 }
 
 std::string WechatPayClient::buildAuthorizationHeader(
-    const std::string &method,
-    const std::string &url,
-    const std::string &body,
-    const std::string &timestamp,
-    const std::string &nonce,
-    std::string &error) const
+  const std::string &method,
+  const std::string &url,
+  const std::string &body,
+  const std::string &timestamp,
+  const std::string &nonce,
+  std::string &error
+) const
 {
     if (mchId_.empty() || serialNo_.empty() || privateKeyPath_.empty())
     {
@@ -621,29 +626,38 @@ std::string WechatPayClient::buildAuthorizationHeader(
         return {};
     }
 
-    std::string message = method + "\n" + url + "\n" + timestamp + "\n" + nonce +
-                          "\n" + body + "\n";
+    std::string message =
+      method + "\n" + url + "\n" + timestamp + "\n" + nonce + "\n" + body + "\n";
     std::string signatureB64;
     if (!signMessage(message, privateKeyPath_, signatureB64, error))
     {
         return {};
     }
 
-    std::string auth =
-        "WECHATPAY2-SHA256-RSA2048 mchid=\"" + mchId_ + "\","
-        "nonce_str=\"" + nonce + "\","
-        "timestamp=\"" + timestamp + "\","
-        "serial_no=\"" + serialNo_ + "\","
-        "signature=\"" + signatureB64 + "\"";
+    std::string auth = "WECHATPAY2-SHA256-RSA2048 mchid=\"" + mchId_ +
+                       "\","
+                       "nonce_str=\"" +
+                       nonce +
+                       "\","
+                       "timestamp=\"" +
+                       timestamp +
+                       "\","
+                       "serial_no=\"" +
+                       serialNo_ +
+                       "\","
+                       "signature=\"" +
+                       signatureB64 + "\"";
     return auth;
 }
 
-bool WechatPayClient::verifyCallback(const std::string &timestamp,
-                                     const std::string &nonce,
-                                     const std::string &body,
-                                     const std::string &signature,
-                                     const std::string &serialNo,
-                                     std::string &error) const
+bool WechatPayClient::verifyCallback(
+  const std::string &timestamp,
+  const std::string &nonce,
+  const std::string &body,
+  const std::string &signature,
+  const std::string &serialNo,
+  std::string &error
+) const
 {
     std::string certContent;
     if (!serialNo.empty())
@@ -672,16 +686,17 @@ bool WechatPayClient::verifyCallback(const std::string &timestamp,
         }
     }
 
-    std::string message =
-        timestamp + "\n" + nonce + "\n" + body + "\n";
+    std::string message = timestamp + "\n" + nonce + "\n" + body + "\n";
     return verifyMessageWithCert(message, signature, certContent, error);
 }
 
-bool WechatPayClient::decryptResource(const std::string &ciphertext,
-                                      const std::string &nonce,
-                                      const std::string &associatedData,
-                                      std::string &plaintext,
-                                      std::string &error) const
+bool WechatPayClient::decryptResource(
+  const std::string &ciphertext,
+  const std::string &nonce,
+  const std::string &associatedData,
+  std::string &plaintext,
+  std::string &error
+) const
 {
     if (apiV3Key_.empty())
     {
@@ -689,8 +704,7 @@ bool WechatPayClient::decryptResource(const std::string &ciphertext,
         return false;
     }
 
-    return decryptAesGcm(ciphertext, nonce, associatedData, apiV3Key_, plaintext,
-                         error);
+    return decryptAesGcm(ciphertext, nonce, associatedData, apiV3Key_, plaintext, error);
 }
 
 bool WechatPayClient::isConfigured() const
@@ -701,9 +715,10 @@ bool WechatPayClient::isConfigured() const
     };
 
     // Check all required configuration fields
-    if (isPlaceholder(appId_) || isPlaceholder(mchId_) ||
-        isPlaceholder(serialNo_) || isPlaceholder(apiV3Key_) ||
-        isPlaceholder(privateKeyPath_))
+    if (
+      isPlaceholder(appId_) || isPlaceholder(mchId_) || isPlaceholder(serialNo_) ||
+      isPlaceholder(apiV3Key_) || isPlaceholder(privateKeyPath_)
+    )
     {
         return false;
     }

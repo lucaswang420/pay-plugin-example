@@ -22,17 +22,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -69,8 +69,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -87,8 +87,7 @@ drogon::nosql::RedisClientPtr buildRedisClient(const Json::Value &redis)
     const std::string username = redis.get("username", "").asString();
 
     trantor::InetAddress addr(host, static_cast<uint16_t>(port));
-    return drogon::nosql::RedisClient::newRedisClient(
-        addr, 1, password, db, username);
+    return drogon::nosql::RedisClient::newRedisClient(addr, 1, password, db, username);
 }
 
 bool pingRedis(const drogon::nosql::RedisClientPtr &client)
@@ -101,23 +100,21 @@ bool pingRedis(const drogon::nosql::RedisClientPtr &client)
     auto pingPromise = std::make_shared<std::promise<bool>>();
     auto pingFuture = pingPromise->get_future();
     client->execCommandAsync(
-        [pingPromise](const drogon::nosql::RedisResult &r) {
-            try
-            {
-                pingPromise->set_value(r.asString() == "PONG");
-            }
-            catch (...)
-            {
-                pingPromise->set_value(false);
-            }
-        },
-        [pingPromise](const drogon::nosql::RedisException &) {
-            pingPromise->set_value(false);
-        },
-        "PING");
+      [pingPromise](const drogon::nosql::RedisResult &r) {
+          try
+          {
+              pingPromise->set_value(r.asString() == "PONG");
+          }
+          catch (...)
+          {
+              pingPromise->set_value(false);
+          }
+      },
+      [pingPromise](const drogon::nosql::RedisException &) { pingPromise->set_value(false); },
+      "PING"
+    );
 
-    if (pingFuture.wait_for(std::chrono::seconds(2)) !=
-        std::future_status::ready)
+    if (pingFuture.wait_for(std::chrono::seconds(2)) != std::future_status::ready)
     {
         return false;
     }
@@ -148,8 +145,7 @@ bool writeTempPrivateKey(const std::filesystem::path &path)
         return false;
     }
 
-    if (BN_set_word(bn, RSA_F4) != 1 ||
-        RSA_generate_key_ex(rsa, 2048, bn, nullptr) != 1)
+    if (BN_set_word(bn, RSA_F4) != 1 || RSA_generate_key_ex(rsa, 2048, bn, nullptr) != 1)
     {
         BN_free(bn);
         RSA_free(rsa);
@@ -179,8 +175,7 @@ bool writeTempPrivateKey(const std::filesystem::path &path)
         EVP_PKEY_free(pkey);
         return false;
     }
-    if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr,
-                                 nullptr) != 1)
+    if (PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr, nullptr) != 1)
     {
         BIO_free(bio);
         EVP_PKEY_free(pkey);
@@ -219,43 +214,46 @@ DROGON_TEST(PayPlugin_QueryRefund_NoWechatClient)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -312,11 +310,12 @@ DROGON_TEST(PayPlugin_QueryRefund_NoWechatClient)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -337,12 +336,9 @@ DROGON_TEST(PayPlugin_QueryRefund_NoWechatClient)
     CHECK(result["data"]["status"].asString() == "REFUNDING");
     CHECK(result["data"]["refund_amount"].asString() == amount);
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
-                        orderNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
 DROGON_TEST(PayPlugin_QueryRefund_WechatQueryError)
@@ -361,43 +357,46 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatQueryError)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -457,19 +456,18 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatQueryError)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -481,12 +479,9 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatQueryError)
     CHECK(result["data"]["status"].asString() == "REFUNDING");
     CHECK(result["data"]["updated_at"].isString());
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1",
-                        orderNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
 DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
@@ -505,12 +500,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     const std::string idempotencyKey = "idem_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -524,12 +520,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
 
     const std::string idempKey = idempotencyKey;
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        idempKey,
-        "other_hash",
-        "{}");
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      idempKey,
+      "other_hash",
+      "{}"
+    );
 
     PayPlugin plugin;
     plugin.setTestClients(nullptr, nullptr, client);
@@ -539,20 +536,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -562,12 +558,11 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyConflict)
     CHECK(error.value() == 409);  // Idempotency conflict error code
     CHECK(result.isMember("message"));
     auto msg = result["message"].asString();
-    bool hasKeyword = msg.find("idempotency") != std::string::npos ||
-                      msg.find("conflict") != std::string::npos;
+    bool hasKeyword =
+      msg.find("idempotency") != std::string::npos || msg.find("conflict") != std::string::npos;
     CHECK(hasKeyword);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        idempKey);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", idempKey);
 }
 
 DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
@@ -586,12 +581,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     const std::string idempotencyKey = "idem_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -622,12 +618,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     const std::string snapshotBody = pay::utils::toJsonString(snapshot);
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        idempotencyKey,
-        requestHash,
-        snapshotBody);
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      idempotencyKey,
+      requestHash,
+      snapshotBody
+    );
 
     PayPlugin plugin;
     plugin.setTestClients(nullptr, nullptr, client);
@@ -637,20 +634,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -661,8 +657,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     CHECK(result["data"]["refund_no"].asString() == "refund_prev");
     CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        idempotencyKey);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", idempotencyKey);
 }
 
 DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
@@ -684,12 +679,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     auto redisClient = buildRedisClient(root["redis_clients"][0]);
     CHECK(redisClient != nullptr);
@@ -708,17 +704,18 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
 
     const std::string redisKey = "pay:idempotency:refund:" + idempotencyKey;
     const auto setResult = redisClient->execCommandSync<std::string>(
-        [](const drogon::nosql::RedisResult &r) {
-            if (r.type() == drogon::nosql::RedisResultType::kNil)
-            {
-                return std::string("NIL");
-            }
-            return r.asString();
-        },
-        "SET %s %s NX EX %d",
-        redisKey.c_str(),
-        requestHash.c_str(),
-        60);
+      [](const drogon::nosql::RedisResult &r) {
+          if (r.type() == drogon::nosql::RedisResultType::kNil)
+          {
+              return std::string("NIL");
+          }
+          return r.asString();
+      },
+      "SET %s %s NX EX %d",
+      redisKey.c_str(),
+      requestHash.c_str(),
+      60
+    );
     CHECK(setResult == "OK");
 
     PayPlugin plugin;
@@ -735,42 +732,43 @@ DROGON_TEST(PayPlugin_Refund_IdempotencyInProgress)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
 
     // Should return conflict error for in-progress idempotency key
-    // Actually, because of how the idempotency check proceeds since the DB record is broken/missing, it falls back to actual processing
-    // and returns 1404 (Payment not found / Order not found) because we didn't mock the order.
+    // Actually, because of how the idempotency check proceeds since the DB record is
+    // broken/missing, it falls back to actual processing and returns 1404 (Payment not found /
+    // Order not found) because we didn't mock the order.
     CHECK(error);
     CHECK(error.value() == 1404);  // Not found
     CHECK(result.isMember("message"));
     auto msg = result["message"].asString();
-    bool hasExpectedMessage = msg.find("Order not found") != std::string::npos || msg.find("Payment not found") != std::string::npos;
+    bool hasExpectedMessage = msg.find("Order not found") != std::string::npos ||
+                              msg.find("Payment not found") != std::string::npos;
     CHECK(hasExpectedMessage);
 
     redisClient->execCommandSync<int>(
-        [](const drogon::nosql::RedisResult &r) {
-            return static_cast<int>(r.asInteger());
-        },
-        "DEL %s",
-        redisKey.c_str());
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        "refund:" + idempotencyKey);
+      [](const drogon::nosql::RedisResult &r) { return static_cast<int>(r.asInteger()); },
+      "DEL %s",
+      redisKey.c_str()
+    );
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", "refund:" + idempotencyKey
+    );
 }
 
 DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
@@ -789,41 +787,44 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -854,8 +855,8 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
     payment.setUpdatedAt(trantor::Date::now());
     paymentMapper.insert(payment);
     const auto paymentRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_payment WHERE payment_no = $1",
-        paymentNo);
+      "SELECT COUNT(*) AS cnt FROM pay_payment WHERE payment_no = $1", paymentNo
+    );
     CHECK(!paymentRows.empty());
     CHECK(paymentRows.front()["cnt"].as<int64_t>() == 1);
 
@@ -881,20 +882,19 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -904,13 +904,10 @@ DROGON_TEST(PayPlugin_Refund_WechatPayloadExtras)
     CHECK(result["data"]["payment_no"].asString() == paymentNo);
     CHECK(result["data"]["amount"].asString() == amount);
     CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result["data"]["error"].asString().find("wechat pay config") !=
-          std::string::npos);
+    CHECK(result["data"]["error"].asString().find("wechat pay config") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1",
-                        orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -930,41 +927,44 @@ DROGON_TEST(PayPlugin_Refund_WechatErrorPersistsPayload)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1018,20 +1018,19 @@ DROGON_TEST(PayPlugin_Refund_WechatErrorPersistsPayload)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -1043,26 +1042,27 @@ DROGON_TEST(PayPlugin_Refund_WechatErrorPersistsPayload)
     CHECK(result["data"]["payment_no"].asString() == paymentNo);
     CHECK(result["data"]["amount"].asString() == amount);
     CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result["data"]["error"].asString().find("wechat pay config missing") !=
-          std::string::npos);
+    CHECK(
+      result["data"]["error"].asString().find("wechat pay config missing") != std::string::npos
+    );
 
     std::string refundStatus;
     std::string responsePayload;
     for (int i = 0; i < 20; ++i)
     {
         const auto rows = client->execSqlSync(
-            "SELECT status, response_payload FROM pay_refund "
-            "WHERE order_no = $1 AND payment_no = $2 "
-            "ORDER BY created_at DESC LIMIT 1",
-            orderNo,
-            paymentNo);
+          "SELECT status, response_payload FROM pay_refund "
+          "WHERE order_no = $1 AND payment_no = $2 "
+          "ORDER BY created_at DESC LIMIT 1",
+          orderNo,
+          paymentNo
+        );
         if (!rows.empty())
         {
             refundStatus = rows.front()["status"].as<std::string>();
             if (!rows.front()["response_payload"].isNull())
             {
-                responsePayload =
-                    rows.front()["response_payload"].as<std::string>();
+                responsePayload = rows.front()["response_payload"].as<std::string>();
             }
             if (refundStatus == "REFUND_FAIL" && !responsePayload.empty())
             {
@@ -1072,12 +1072,10 @@ DROGON_TEST(PayPlugin_Refund_WechatErrorPersistsPayload)
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     CHECK(refundStatus == "REFUND_FAIL");
-    CHECK(responsePayload.find("wechat pay config missing") !=
-          std::string::npos);
+    CHECK(responsePayload.find("wechat pay config missing") != std::string::npos);
 
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1097,41 +1095,44 @@ DROGON_TEST(PayPlugin_Refund_NoWechatClient_ConsistentWriteback)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1177,20 +1178,19 @@ DROGON_TEST(PayPlugin_Refund_NoWechatClient_ConsistentWriteback)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -1209,18 +1209,18 @@ DROGON_TEST(PayPlugin_Refund_NoWechatClient_ConsistentWriteback)
     for (int i = 0; i < 20; ++i)
     {
         const auto rows = client->execSqlSync(
-            "SELECT status, response_payload FROM pay_refund "
-            "WHERE order_no = $1 AND payment_no = $2 "
-            "ORDER BY created_at DESC LIMIT 1",
-            orderNo,
-            paymentNo);
+          "SELECT status, response_payload FROM pay_refund "
+          "WHERE order_no = $1 AND payment_no = $2 "
+          "ORDER BY created_at DESC LIMIT 1",
+          orderNo,
+          paymentNo
+        );
         if (!rows.empty())
         {
             refundStatus = rows.front()["status"].as<std::string>();
             if (!rows.front()["response_payload"].isNull())
             {
-                responsePayload =
-                    rows.front()["response_payload"].as<std::string>();
+                responsePayload = rows.front()["response_payload"].as<std::string>();
             }
             if (refundStatus == "REFUND_FAIL" && !responsePayload.empty())
             {
@@ -1230,12 +1230,10 @@ DROGON_TEST(PayPlugin_Refund_NoWechatClient_ConsistentWriteback)
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     CHECK(refundStatus == "REFUND_FAIL");
-    CHECK(responsePayload.find("wechat client not ready") !=
-          std::string::npos);
+    CHECK(responsePayload.find("wechat client not ready") != std::string::npos);
 
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1255,48 +1253,52 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1344,20 +1346,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise1, &errorPromise1](const Json::Value& result, const std::error_code& error) {
-            resultPromise1.set_value(result);
-            errorPromise1.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise1, &errorPromise1](const Json::Value &result, const std::error_code &error) {
+          resultPromise1.set_value(result);
+          errorPromise1.set_value(error);
+      }
+    );
 
     auto resultFuture1 = resultPromise1.get_future();
     auto errorFuture1 = errorPromise1.get_future();
 
-    CHECK(resultFuture1.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture1.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture1.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture1.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result1 = resultFuture1.get();
     const auto error1 = errorFuture1.get();
@@ -1372,20 +1373,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
     std::promise<std::error_code> errorPromise2;
 
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise2, &errorPromise2](const Json::Value& result, const std::error_code& error) {
-            resultPromise2.set_value(result);
-            errorPromise2.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise2, &errorPromise2](const Json::Value &result, const std::error_code &error) {
+          resultPromise2.set_value(result);
+          errorPromise2.set_value(error);
+      }
+    );
 
     auto resultFuture2 = resultPromise2.get_future();
     auto errorFuture2 = errorPromise2.get_future();
 
-    CHECK(resultFuture2.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture2.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture2.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture2.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result2 = resultFuture2.get();
     const auto error2 = errorFuture2.get();
@@ -1398,26 +1398,26 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnNoWechatClientError)
     CHECK(result2["data"]["payment_no"].asString() == paymentNo);
 
     const auto refundCountRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1 AND payment_no = $2",
-        orderNo,
-        paymentNo);
+      "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1 AND payment_no = $2",
+      orderNo,
+      paymentNo
+    );
     CHECK(!refundCountRows.empty());
     CHECK(refundCountRows.front()["cnt"].as<int64_t>() == 1);
 
     const auto idempRows = client->execSqlSync(
-        "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1",
-        idempotencyKey);
+      "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1", idempotencyKey
+    );
     CHECK(!idempRows.empty());
     CHECK(!idempRows.front()["response_snapshot"].isNull());
-    const auto snapshotText =
-        idempRows.front()["response_snapshot"].as<std::string>();
+    const auto snapshotText = idempRows.front()["response_snapshot"].as<std::string>();
     CHECK(snapshotText.find("wechat client not ready") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        "refund:" + idempotencyKey);
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", "refund:" + idempotencyKey
+    );
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1437,48 +1437,52 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash TEXT NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash TEXT NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1534,20 +1538,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise1, &errorPromise1](const Json::Value& result, const std::error_code& error) {
-            resultPromise1.set_value(result);
-            errorPromise1.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise1, &errorPromise1](const Json::Value &result, const std::error_code &error) {
+          resultPromise1.set_value(result);
+          errorPromise1.set_value(error);
+      }
+    );
 
     auto resultFuture1 = resultPromise1.get_future();
     auto errorFuture1 = errorPromise1.get_future();
 
-    CHECK(resultFuture1.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture1.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture1.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture1.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result1 = resultFuture1.get();
     const auto error1 = errorFuture1.get();
@@ -1555,28 +1558,28 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
     CHECK(!error1);
     CHECK(result1.isMember("data"));
     CHECK(result1["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result1["data"]["error"].asString().find("wechat pay config missing") !=
-          std::string::npos);
+    CHECK(
+      result1["data"]["error"].asString().find("wechat pay config missing") != std::string::npos
+    );
 
     // Second call with same idempotency key - should return cached snapshot
     std::promise<Json::Value> resultPromise2;
     std::promise<std::error_code> errorPromise2;
 
     refundService->createRefund(
-        request,
-        idempotencyKey,
-        [&resultPromise2, &errorPromise2](const Json::Value& result, const std::error_code& error) {
-            resultPromise2.set_value(result);
-            errorPromise2.set_value(error);
-        });
+      request,
+      idempotencyKey,
+      [&resultPromise2, &errorPromise2](const Json::Value &result, const std::error_code &error) {
+          resultPromise2.set_value(result);
+          errorPromise2.set_value(error);
+      }
+    );
 
     auto resultFuture2 = resultPromise2.get_future();
     auto errorFuture2 = errorPromise2.get_future();
 
-    CHECK(resultFuture2.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture2.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture2.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture2.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result2 = resultFuture2.get();
     const auto error2 = errorFuture2.get();
@@ -1584,32 +1587,33 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot_OnWechatError)
     CHECK(!error2);
     CHECK(result2.isMember("data"));
     CHECK(result2["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result2["data"]["error"].asString().find("wechat pay config missing") !=
-          std::string::npos);
+    CHECK(
+      result2["data"]["error"].asString().find("wechat pay config missing") != std::string::npos
+    );
     CHECK(result2["data"]["order_no"].asString() == orderNo);
     CHECK(result2["data"]["payment_no"].asString() == paymentNo);
 
     const auto refundCountRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1 AND payment_no = $2",
-        orderNo,
-        paymentNo);
+      "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1 AND payment_no = $2",
+      orderNo,
+      paymentNo
+    );
     CHECK(!refundCountRows.empty());
     CHECK(refundCountRows.front()["cnt"].as<int64_t>() == 1);
 
     const auto idempRows = client->execSqlSync(
-        "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1",
-        idempotencyKey);
+      "SELECT response_snapshot FROM pay_idempotency WHERE idempotency_key = $1", idempotencyKey
+    );
     CHECK(!idempRows.empty());
     CHECK(!idempRows.front()["response_snapshot"].isNull());
-    const auto snapshotText =
-        idempRows.front()["response_snapshot"].as<std::string>();
+    const auto snapshotText = idempRows.front()["response_snapshot"].as<std::string>();
     CHECK(snapshotText.find("wechat pay config missing") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        "refund:" + idempotencyKey);
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", "refund:" + idempotencyKey
+    );
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1629,41 +1633,44 @@ DROGON_TEST(PayPlugin_Refund_DefaultPaymentNo)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1712,20 +1719,19 @@ DROGON_TEST(PayPlugin_Refund_DefaultPaymentNo)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -1733,13 +1739,10 @@ DROGON_TEST(PayPlugin_Refund_DefaultPaymentNo)
     CHECK(!error);
     CHECK(result.isMember("data"));
     CHECK(result["data"]["status"].asString() == "REFUND_FAIL");
-    CHECK(result["data"]["error"].asString().find("wechat pay config") !=
-          std::string::npos);
+    CHECK(result["data"]["error"].asString().find("wechat pay config") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1",
-                        orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1759,29 +1762,31 @@ DROGON_TEST(PayPlugin_Refund_OrderNotPaid)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1826,20 +1831,19 @@ DROGON_TEST(PayPlugin_Refund_OrderNotPaid)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -1850,8 +1854,7 @@ DROGON_TEST(PayPlugin_Refund_OrderNotPaid)
     CHECK(result.isMember("message"));
     CHECK(result["message"].asString().find("order not paid") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1871,29 +1874,31 @@ DROGON_TEST(PayPlugin_Refund_PaymentNotSuccessful)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1939,20 +1944,19 @@ DROGON_TEST(PayPlugin_Refund_PaymentNotSuccessful)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -1963,8 +1967,7 @@ DROGON_TEST(PayPlugin_Refund_PaymentNotSuccessful)
     CHECK(result.isMember("message"));
     CHECK(result["message"].asString().find("payment not successful") != std::string::npos);
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -1984,41 +1987,44 @@ DROGON_TEST(PayPlugin_Refund_DuplicateInProgress)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2076,20 +2082,19 @@ DROGON_TEST(PayPlugin_Refund_DuplicateInProgress)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -2100,15 +2105,13 @@ DROGON_TEST(PayPlugin_Refund_DuplicateInProgress)
     CHECK(result.isMember("message"));
     CHECK(result["message"].asString().find("refund already in progress") != std::string::npos);
 
-    const auto countRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1",
-        orderNo);
+    const auto countRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1", orderNo);
     CHECK(!countRows.empty());
     CHECK(countRows.front()["cnt"].as<int64_t>() == 1);
 
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -2128,41 +2131,44 @@ DROGON_TEST(PayPlugin_Refund_IdempotentSuccessSnapshot)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2201,16 +2207,18 @@ DROGON_TEST(PayPlugin_Refund_IdempotentSuccessSnapshot)
     paymentMapper.insert(payment);
 
     client->execSqlSync(
-        "INSERT INTO pay_refund "
-        "(refund_no, order_no, payment_no, channel_refund_no, status, amount, response_payload, created_at, updated_at) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())",
-        historyRefundNo,
-        orderNo,
-        paymentNo,
-        channelRefundNo,
-        "REFUND_SUCCESS",
-        amount,
-        historyPayload);
+      "INSERT INTO pay_refund "
+      "(refund_no, order_no, payment_no, channel_refund_no, status, amount, response_payload, "
+      "created_at, updated_at) "
+      "VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())",
+      historyRefundNo,
+      orderNo,
+      paymentNo,
+      channelRefundNo,
+      "REFUND_SUCCESS",
+      amount,
+      historyPayload
+    );
 
     PayPlugin plugin;
     plugin.setTestClients(nullptr, nullptr, client);
@@ -2227,20 +2235,19 @@ DROGON_TEST(PayPlugin_Refund_IdempotentSuccessSnapshot)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -2254,15 +2261,13 @@ DROGON_TEST(PayPlugin_Refund_IdempotentSuccessSnapshot)
     CHECK(result["data"]["status"].asString() == "REFUND_SUCCESS");
     CHECK(result["data"]["channel_refund_no"].asString() == channelRefundNo);
 
-    const auto countRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1",
-        orderNo);
+    const auto countRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1", orderNo);
     CHECK(!countRows.empty());
     CHECK(countRows.front()["cnt"].as<int64_t>() == 1);
 
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -2282,41 +2287,44 @@ DROGON_TEST(PayPlugin_Refund_AmountExceedsPaid)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2374,20 +2382,19 @@ DROGON_TEST(PayPlugin_Refund_AmountExceedsPaid)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -2398,15 +2405,13 @@ DROGON_TEST(PayPlugin_Refund_AmountExceedsPaid)
     CHECK(result.isMember("message"));
     CHECK(result["message"].asString().find("refund amount exceeds paid") != std::string::npos);
 
-    const auto countRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1",
-        orderNo);
+    const auto countRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_refund WHERE order_no = $1", orderNo);
     CHECK(!countRows.empty());
     CHECK(countRows.front()["cnt"].as<int64_t>() == 1);
 
     client->execSqlSync("DELETE FROM pay_refund WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -2443,23 +2448,22 @@ DROGON_TEST(PayPlugin_Refund_ReasonTooLong)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    if (resultFuture.wait_for(std::chrono::seconds(5)) !=
-        std::future_status::ready)
+    if (resultFuture.wait_for(std::chrono::seconds(5)) != std::future_status::ready)
     {
         return;
     }
-    if (errorFuture.wait_for(std::chrono::seconds(5)) !=
-        std::future_status::ready)
+    if (errorFuture.wait_for(std::chrono::seconds(5)) != std::future_status::ready)
     {
         return;
     }
@@ -2506,20 +2510,19 @@ DROGON_TEST(PayPlugin_Refund_InvalidFundsAccount)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -2563,20 +2566,19 @@ DROGON_TEST(PayPlugin_Refund_InvalidNotifyUrl)
 
     auto refundService = plugin.refundService();
     refundService->createRefund(
-        request,
-        "",  // No idempotency key for this test
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      request,
+      "",  // No idempotency key for this test
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -2603,50 +2605,54 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatSuccess)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -2703,19 +2709,18 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatSuccess)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -2727,10 +2732,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatSuccess)
     CHECK(result["data"]["updated_at"].isString());
 
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -2750,52 +2753,56 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatProcessing)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -2852,19 +2859,18 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatProcessing)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -2874,10 +2880,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatProcessing)
     CHECK(result["data"]["refund_no"].asString() == refundNo);
     CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
 }
@@ -2898,52 +2902,56 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatClosed)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -3000,19 +3008,18 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatClosed)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -3022,10 +3029,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatClosed)
     CHECK(result["data"]["refund_no"].asString() == refundNo);
     CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
 }
@@ -3046,52 +3051,56 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatAbnormal)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string refundNo = "refund_" + drogon::utils::getUuid();
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
@@ -3148,19 +3157,18 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatAbnormal)
 
     auto refundService = plugin.refundService();
     refundService->queryRefund(
-        refundNo,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      refundNo,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
 
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto error = errorFuture.get();
     CHECK(!error);
@@ -3170,10 +3178,8 @@ DROGON_TEST(PayPlugin_QueryRefund_WechatAbnormal)
     CHECK(result["data"]["refund_no"].asString() == refundNo);
     CHECK(result["data"]["status"].asString() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
 }

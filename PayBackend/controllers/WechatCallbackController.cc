@@ -2,8 +2,9 @@
 #include "../services/CallbackService.h"
 
 void WechatCallbackController::notify(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     // Extract callback parameters from request
     std::string body = std::string(req->body());
@@ -25,35 +26,51 @@ void WechatCallbackController::notify(
     Json::CharReaderBuilder builder;
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     std::string errors;
-    const char* str = body.c_str();
-    if (reader->parse(str, str + body.length(), &bodyJson, &errors) && bodyJson.isMember("event_type")) {
+    const char *str = body.c_str();
+    if (
+      reader->parse(str, str + body.length(), &bodyJson, &errors) && bodyJson.isMember("event_type")
+    )
+    {
         eventType = bodyJson["event_type"].asString();
     }
 
     // Route to payment or refund callback handler
-    if (eventType.find("REFUND") != std::string::npos) {
+    if (eventType.find("REFUND") != std::string::npos)
+    {
         // Handle refund callback
         callbackService->handleRefundCallback(
-            body, signature, timestamp, nonce, serialNo,
-            [callback](const Json::Value& result, const std::error_code& error) {
-                auto resp = drogon::HttpResponse::newHttpJsonResponse(result);
-                if (error) {
-                    resp->setStatusCode(drogon::k500InternalServerError);
-                }
-                callback(resp);
-            }
+          body,
+          signature,
+          timestamp,
+          nonce,
+          serialNo,
+          [callback](const Json::Value &result, const std::error_code &error) {
+              auto resp = drogon::HttpResponse::newHttpJsonResponse(result);
+              if (error)
+              {
+                  resp->setStatusCode(drogon::k500InternalServerError);
+              }
+              callback(resp);
+          }
         );
-    } else {
+    }
+    else
+    {
         // Handle payment callback (default)
         callbackService->handlePaymentCallback(
-            body, signature, timestamp, nonce, serialNo,
-            [callback](const Json::Value& result, const std::error_code& error) {
-                auto resp = drogon::HttpResponse::newHttpJsonResponse(result);
-                if (error) {
-                    resp->setStatusCode(drogon::k500InternalServerError);
-                }
-                callback(resp);
-            }
+          body,
+          signature,
+          timestamp,
+          nonce,
+          serialNo,
+          [callback](const Json::Value &result, const std::error_code &error) {
+              auto resp = drogon::HttpResponse::newHttpJsonResponse(result);
+              if (error)
+              {
+                  resp->setStatusCode(drogon::k500InternalServerError);
+              }
+              callback(resp);
+          }
         );
     }
 }

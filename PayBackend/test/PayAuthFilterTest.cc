@@ -43,12 +43,13 @@ DROGON_TEST(PayAuthFilter_NotConfigured)
     const auto before = PayAuthMetrics::snapshot();
 
     filter.doFilter(
-        req,
-        [&](const drogon::HttpResponsePtr &r) {
-            resp = r;
-            fcbCalled = true;
-        },
-        [&]() { fccbCalled = true; });
+      req,
+      [&](const drogon::HttpResponsePtr &r) {
+          resp = r;
+          fcbCalled = true;
+      },
+      [&]() { fccbCalled = true; }
+    );
 
     CHECK(fcbCalled);
     CHECK(!fccbCalled);
@@ -57,8 +58,7 @@ DROGON_TEST(PayAuthFilter_NotConfigured)
     CHECK(resp->body() == "api key not configured");
 
     const auto after = PayAuthMetrics::snapshot();
-    CHECK(metricValue(after, "not_configured") ==
-          metricValue(before, "not_configured") + 1);
+    CHECK(metricValue(after, "not_configured") == metricValue(before, "not_configured") + 1);
 }
 
 DROGON_TEST(PayAuthFilter_MissingKey)
@@ -77,12 +77,13 @@ DROGON_TEST(PayAuthFilter_MissingKey)
     const auto before = PayAuthMetrics::snapshot();
 
     filter.doFilter(
-        req,
-        [&](const drogon::HttpResponsePtr &r) {
-            resp = r;
-            fcbCalled = true;
-        },
-        [&]() { fccbCalled = true; });
+      req,
+      [&](const drogon::HttpResponsePtr &r) {
+          resp = r;
+          fcbCalled = true;
+      },
+      [&]() { fccbCalled = true; }
+    );
 
     CHECK(fcbCalled);
     CHECK(!fccbCalled);
@@ -91,8 +92,7 @@ DROGON_TEST(PayAuthFilter_MissingKey)
     CHECK(resp->body() == "missing api key");
 
     const auto after = PayAuthMetrics::snapshot();
-    CHECK(metricValue(after, "missing_key") ==
-          metricValue(before, "missing_key") + 1);
+    CHECK(metricValue(after, "missing_key") == metricValue(before, "missing_key") + 1);
 }
 
 DROGON_TEST(PayAuthFilter_InvalidKey)
@@ -112,12 +112,13 @@ DROGON_TEST(PayAuthFilter_InvalidKey)
     const auto before = PayAuthMetrics::snapshot();
 
     filter.doFilter(
-        req,
-        [&](const drogon::HttpResponsePtr &r) {
-            resp = r;
-            fcbCalled = true;
-        },
-        [&]() { fccbCalled = true; });
+      req,
+      [&](const drogon::HttpResponsePtr &r) {
+          resp = r;
+          fcbCalled = true;
+      },
+      [&]() { fccbCalled = true; }
+    );
 
     CHECK(fcbCalled);
     CHECK(!fccbCalled);
@@ -126,8 +127,7 @@ DROGON_TEST(PayAuthFilter_InvalidKey)
     CHECK(resp->body() == "invalid api key");
 
     const auto after = PayAuthMetrics::snapshot();
-    CHECK(metricValue(after, "invalid_key") ==
-          metricValue(before, "invalid_key") + 1);
+    CHECK(metricValue(after, "invalid_key") == metricValue(before, "invalid_key") + 1);
 }
 
 DROGON_TEST(PayAuthFilter_ValidKey)
@@ -145,9 +145,8 @@ DROGON_TEST(PayAuthFilter_ValidKey)
     bool fccbCalled = false;
 
     filter.doFilter(
-        req,
-        [&](const drogon::HttpResponsePtr &) { fcbCalled = true; },
-        [&]() { fccbCalled = true; });
+      req, [&](const drogon::HttpResponsePtr &) { fcbCalled = true; }, [&]() { fccbCalled = true; }
+    );
 
     CHECK(!fcbCalled);
     CHECK(fccbCalled);

@@ -28,13 +28,9 @@ void PayAuthMetrics::incNotConfigured()
 Json::Value PayAuthMetrics::snapshot()
 {
     Json::Value root;
-    root["missing_key"] =
-        static_cast<Json::UInt64>(missingKey_.load());
-    root["invalid_key"] =
-        static_cast<Json::UInt64>(invalidKey_.load());
-    root["scope_denied"] =
-        static_cast<Json::UInt64>(scopeDenied_.load());
-    root["not_configured"] =
-        static_cast<Json::UInt64>(notConfigured_.load());
+    root["missing_key"] = static_cast<Json::UInt64>(missingKey_.load());
+    root["invalid_key"] = static_cast<Json::UInt64>(invalidKey_.load());
+    root["scope_denied"] = static_cast<Json::UInt64>(scopeDenied_.load());
+    root["not_configured"] = static_cast<Json::UInt64>(notConfigured_.load());
     return root;
 }

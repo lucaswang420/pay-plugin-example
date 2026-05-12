@@ -34,7 +34,8 @@
 #include <memory>
 #include <string>
 
-struct CreateRefundRequest {
+struct CreateRefundRequest
+{
     std::string orderNo;
     std::string paymentNo;
     std::string refundNo;
@@ -44,35 +45,34 @@ struct CreateRefundRequest {
     std::string fundsAccount;
 };
 
-class RefundService {
-public:
-    using RefundCallback = std::function<void(const Json::Value& result, const std::error_code& error)>;
+class RefundService
+{
+  public:
+    using RefundCallback =
+      std::function<void(const Json::Value &result, const std::error_code &error)>;
 
     RefundService(
-        std::shared_ptr<WechatPayClient> wechatClient,
-        std::shared_ptr<AlipaySandboxClient> alipayClient,
-        std::shared_ptr<drogon::orm::DbClient> dbClient,
-        std::shared_ptr<IdempotencyService> idempotencyService
+      std::shared_ptr<WechatPayClient> wechatClient,
+      std::shared_ptr<AlipaySandboxClient> alipayClient,
+      std::shared_ptr<drogon::orm::DbClient> dbClient,
+      std::shared_ptr<IdempotencyService> idempotencyService
     );
 
     void createRefund(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      RefundCallback &&callback
     );
 
-    void queryRefund(
-        const std::string& refundNo,
-        RefundCallback&& callback
-    );
+    void queryRefund(const std::string &refundNo, RefundCallback &&callback);
 
     void syncRefundStatusFromWechat(
-        const std::string& refundNo,
-        const Json::Value& result,
-        std::function<void(const std::string& status)>&& callback
+      const std::string &refundNo,
+      const Json::Value &result,
+      std::function<void(const std::string &status)> &&callback
     );
 
-private:
+  private:
     std::shared_ptr<WechatPayClient> wechatClient_;
     std::shared_ptr<AlipaySandboxClient> alipayClient_;
     std::shared_ptr<drogon::orm::DbClient> dbClient_;
@@ -80,98 +80,98 @@ private:
 
     // Helper methods for refund processing
     void proceedRefund(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      RefundCallback &&callback
     );
 
     void proceedOrderFlow(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const std::string& refundNo,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        const std::string& reason,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const std::string &refundNo,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      const std::string &reason,
+      RefundCallback &&callback
     );
 
     void proceedWithAmountCheck(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const std::string& refundNo,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        int64_t refundFen,
-        int64_t totalFen,
-        const std::string& currency,
-        const std::string& reason,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const std::string &refundNo,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      int64_t refundFen,
+      int64_t totalFen,
+      const std::string &currency,
+      const std::string &reason,
+      RefundCallback &&callback
     );
 
     void proceedWithInProgressCheck(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const std::string& refundNo,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        int64_t refundFen,
-        int64_t totalFen,
-        const std::string& currency,
-        const std::string& reason,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const std::string &refundNo,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      int64_t refundFen,
+      int64_t totalFen,
+      const std::string &currency,
+      const std::string &reason,
+      RefundCallback &&callback
     );
 
     void proceedWithInsert(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const std::string& refundNo,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        int64_t refundFen,
-        int64_t totalFen,
-        const std::string& currency,
-        const std::string& reason,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const std::string &refundNo,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      int64_t refundFen,
+      int64_t totalFen,
+      const std::string &currency,
+      const std::string &reason,
+      RefundCallback &&callback
     );
 
     void proceedWithRefundInsert(
-        const CreateRefundRequest& request,
-        const std::string& idempotencyKey,
-        const std::string& requestHash,
-        const std::string& refundNo,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        int64_t refundFen,
-        int64_t totalFen,
-        const std::string& currency,
-        const std::string& reason,
-        RefundCallback&& callback
+      const CreateRefundRequest &request,
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const std::string &refundNo,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      int64_t refundFen,
+      int64_t totalFen,
+      const std::string &currency,
+      const std::string &reason,
+      RefundCallback &&callback
     );
 
     void updateRefundWithError(
-        const std::string& refundNo,
-        const std::string& errorMessage,
-        const Json::Value& errJson
+      const std::string &refundNo,
+      const std::string &errorMessage,
+      const Json::Value &errJson
     );
 
     void updateRefundWithSuccess(
-        const std::string& refundNo,
-        const std::string& refundStatus,
-        const std::string& refundId,
-        const Json::Value& result,
-        const std::string& orderNo,
-        const std::string& paymentNo,
-        const std::string& amount,
-        RefundCallback&& callback
+      const std::string &refundNo,
+      const std::string &refundStatus,
+      const std::string &refundId,
+      const Json::Value &result,
+      const std::string &orderNo,
+      const std::string &paymentNo,
+      const std::string &amount,
+      RefundCallback &&callback
     );
 };

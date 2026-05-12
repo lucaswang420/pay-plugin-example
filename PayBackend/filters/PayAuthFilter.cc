@@ -72,9 +72,11 @@ std::string resolveScope(const drogon::HttpRequestPtr &req)
 }
 }  // namespace
 
-void PayAuthFilter::doFilter(const drogon::HttpRequestPtr &req,
-                             drogon::FilterCallback &&fcb,
-                             drogon::FilterChainCallback &&fccb)
+void PayAuthFilter::doFilter(
+  const drogon::HttpRequestPtr &req,
+  drogon::FilterCallback &&fcb,
+  drogon::FilterChainCallback &&fccb
+)
 {
     if (req->method() == drogon::Options)
     {
@@ -84,9 +86,10 @@ void PayAuthFilter::doFilter(const drogon::HttpRequestPtr &req,
 
     std::vector<std::string> allowedKeys;
     const auto &customConfig = drogon::app().getCustomConfig();
-    if (customConfig.isMember("pay") &&
-        customConfig["pay"].isMember("api_keys") &&
-        customConfig["pay"]["api_keys"].isArray())
+    if (
+      customConfig.isMember("pay") && customConfig["pay"].isMember("api_keys") &&
+      customConfig["pay"]["api_keys"].isArray()
+    )
     {
         for (const auto &item : customConfig["pay"]["api_keys"])
         {
@@ -136,9 +139,7 @@ void PayAuthFilter::doFilter(const drogon::HttpRequestPtr &req,
         return;
     }
 
-    const auto match =
-        std::find(allowedKeys.begin(), allowedKeys.end(), key) !=
-        allowedKeys.end();
+    const auto match = std::find(allowedKeys.begin(), allowedKeys.end(), key) != allowedKeys.end();
     if (!match)
     {
         auto resp = drogon::HttpResponse::newHttpResponse();
@@ -151,9 +152,11 @@ void PayAuthFilter::doFilter(const drogon::HttpRequestPtr &req,
     }
 
     const auto scope = resolveScope(req);
-    if (!scope.empty() && customConfig.isMember("pay") &&
-        customConfig["pay"].isMember("api_key_scopes") &&
-        customConfig["pay"]["api_key_scopes"].isObject())
+    if (
+      !scope.empty() && customConfig.isMember("pay") &&
+      customConfig["pay"].isMember("api_key_scopes") &&
+      customConfig["pay"]["api_key_scopes"].isObject()
+    )
     {
         const auto &scopeConfig = customConfig["pay"]["api_key_scopes"];
         if (scopeConfig.isMember(key))

@@ -34,7 +34,8 @@
 #include <memory>
 #include <string>
 
-struct CreatePaymentRequest {
+struct CreatePaymentRequest
+{
     std::string orderNo;
     std::string amount;
     std::string currency;
@@ -42,65 +43,58 @@ struct CreatePaymentRequest {
     std::string notifyUrl;
     int64_t userId;
     Json::Value sceneInfo;
-    std::string channel;  // Payment channel: "alipay" or "wechat"
+    std::string channel;     // Payment channel: "alipay" or "wechat"
     std::string timeExpire;  // Order expiration time (RFC 3339 format)
-    std::string attach;  // Additional data
+    std::string attach;      // Additional data
 };
 
-class PaymentService {
-public:
-    using PaymentCallback = std::function<void(const Json::Value& result, const std::error_code& error)>;
+class PaymentService
+{
+  public:
+    using PaymentCallback =
+      std::function<void(const Json::Value &result, const std::error_code &error)>;
 
     PaymentService(
-        std::shared_ptr<WechatPayClient> wechatClient,
-        std::shared_ptr<AlipaySandboxClient> alipayClient,
-        std::shared_ptr<drogon::orm::DbClient> dbClient,
-        drogon::nosql::RedisClientPtr redisClient,
-        std::shared_ptr<IdempotencyService> idempotencyService
+      std::shared_ptr<WechatPayClient> wechatClient,
+      std::shared_ptr<AlipaySandboxClient> alipayClient,
+      std::shared_ptr<drogon::orm::DbClient> dbClient,
+      drogon::nosql::RedisClientPtr redisClient,
+      std::shared_ptr<IdempotencyService> idempotencyService
     );
 
     void createPayment(
-        const CreatePaymentRequest& request,
-        const std::string& idempotencyKey,
-        PaymentCallback&& callback
+      const CreatePaymentRequest &request,
+      const std::string &idempotencyKey,
+      PaymentCallback &&callback
     );
 
-    void createQRPayment(
-        const Json::Value& request,
-        PaymentCallback&& callback
-    );
+    void createQRPayment(const Json::Value &request, PaymentCallback &&callback);
 
-    void queryOrder(
-        const std::string& orderNo,
-        PaymentCallback&& callback
-    );
+    void queryOrder(const std::string &orderNo, PaymentCallback &&callback);
 
     void queryOrderList(
-        const std::string& status,
-        const int64_t userId,
-        const size_t limit,
-        const size_t offset,
-        PaymentCallback&& callback
+      const std::string &status,
+      const int64_t userId,
+      const size_t limit,
+      const size_t offset,
+      PaymentCallback &&callback
     );
 
     void syncOrderStatusFromWechat(
-        const std::string& orderNo,
-        const Json::Value& wechatResult,
-        std::function<void(const std::string& status)>&& callback
+      const std::string &orderNo,
+      const Json::Value &wechatResult,
+      std::function<void(const std::string &status)> &&callback
     );
 
     void syncOrderStatusFromAlipay(
-        const std::string& orderNo,
-        const Json::Value& alipayResult,
-        std::function<void(const std::string& status)>&& callback
+      const std::string &orderNo,
+      const Json::Value &alipayResult,
+      std::function<void(const std::string &status)> &&callback
     );
 
-    void reconcileSummary(
-        const std::string& date,
-        PaymentCallback&& callback
-    );
+    void reconcileSummary(const std::string &date, PaymentCallback &&callback);
 
-private:
+  private:
     std::shared_ptr<WechatPayClient> wechatClient_;
     std::shared_ptr<AlipaySandboxClient> alipayClient_;
     std::shared_ptr<drogon::orm::DbClient> dbClient_;
@@ -109,9 +103,9 @@ private:
 
     std::string generatePaymentNo();
     void proceedCreatePayment(
-        const CreatePaymentRequest& request,
-        const std::string& paymentNo,
-        int64_t totalFen,
-        PaymentCallback&& callback
+      const CreatePaymentRequest &request,
+      const std::string &paymentNo,
+      int64_t totalFen,
+      PaymentCallback &&callback
     );
 };

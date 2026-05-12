@@ -14,10 +14,12 @@
 
 namespace
 {
-std::string encryptAesGcm(const std::string &plaintext,
-                          const std::string &nonce,
-                          const std::string &aad,
-                          const std::string &apiV3Key)
+std::string encryptAesGcm(
+  const std::string &plaintext,
+  const std::string &nonce,
+  const std::string &aad,
+  const std::string &apiV3Key
+)
 {
     const EVP_CIPHER *cipher = EVP_aes_256_gcm();
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -32,17 +34,23 @@ std::string encryptAesGcm(const std::string &plaintext,
         return {};
     }
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()),
-                            nullptr) != 1)
+    if (
+      EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()), nullptr) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
     }
 
-    if (EVP_EncryptInit_ex(
-            ctx, nullptr, nullptr,
-            reinterpret_cast<const unsigned char *>(apiV3Key.data()),
-            reinterpret_cast<const unsigned char *>(nonce.data())) != 1)
+    if (
+      EVP_EncryptInit_ex(
+        ctx,
+        nullptr,
+        nullptr,
+        reinterpret_cast<const unsigned char *>(apiV3Key.data()),
+        reinterpret_cast<const unsigned char *>(nonce.data())
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
@@ -51,9 +59,15 @@ std::string encryptAesGcm(const std::string &plaintext,
     int outLen = 0;
     if (!aad.empty())
     {
-        if (EVP_EncryptUpdate(ctx, nullptr, &outLen,
-                              reinterpret_cast<const unsigned char *>(aad.data()),
-                              static_cast<int>(aad.size())) != 1)
+        if (
+          EVP_EncryptUpdate(
+            ctx,
+            nullptr,
+            &outLen,
+            reinterpret_cast<const unsigned char *>(aad.data()),
+            static_cast<int>(aad.size())
+          ) != 1
+        )
         {
             EVP_CIPHER_CTX_free(ctx);
             return {};
@@ -61,22 +75,25 @@ std::string encryptAesGcm(const std::string &plaintext,
     }
 
     std::string ciphertext(plaintext.size(), '\0');
-    if (EVP_EncryptUpdate(
-            ctx,
-            reinterpret_cast<unsigned char *>(&ciphertext[0]),
-            &outLen,
-            reinterpret_cast<const unsigned char *>(plaintext.data()),
-            static_cast<int>(plaintext.size())) != 1)
+    if (
+      EVP_EncryptUpdate(
+        ctx,
+        reinterpret_cast<unsigned char *>(&ciphertext[0]),
+        &outLen,
+        reinterpret_cast<const unsigned char *>(plaintext.data()),
+        static_cast<int>(plaintext.size())
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
     }
     int totalLen = outLen;
 
-    if (EVP_EncryptFinal_ex(
-            ctx,
-            reinterpret_cast<unsigned char *>(&ciphertext[totalLen]),
-            &outLen) != 1)
+    if (
+      EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&ciphertext[totalLen]), &outLen) !=
+      1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
@@ -120,9 +137,10 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
         return false;
     }
 
-    if (BN_set_word(e, RSA_F4) != 1 ||
-        RSA_generate_key_ex(rsa, 2048, e, nullptr) != 1 ||
-        EVP_PKEY_assign_RSA(pkey, rsa) != 1)
+    if (
+      BN_set_word(e, RSA_F4) != 1 || RSA_generate_key_ex(rsa, 2048, e, nullptr) != 1 ||
+      EVP_PKEY_assign_RSA(pkey, rsa) != 1
+    )
     {
         RSA_free(rsa);
         BN_free(e);
@@ -145,9 +163,9 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
     X509_set_pubkey(cert, pkey);
 
     X509_NAME *name = X509_get_subject_name(cert);
-    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-                               reinterpret_cast<const unsigned char *>("Test"),
-                               -1, -1, 0);
+    X509_NAME_add_entry_by_txt(
+      name, "CN", MBSTRING_ASC, reinterpret_cast<const unsigned char *>("Test"), -1, -1, 0
+    );
     X509_set_issuer_name(cert, name);
 
     if (X509_sign(cert, pkey, EVP_sha256()) == 0)
@@ -189,9 +207,7 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
     return true;
 }
 
-bool signMessage(const std::string &message,
-                 EVP_PKEY *pkey,
-                 std::string &signatureB64)
+bool signMessage(const std::string &message, EVP_PKEY *pkey, std::string &signatureB64)
 {
     if (!pkey)
     {
@@ -219,8 +235,7 @@ bool signMessage(const std::string &message,
         return false;
     }
     std::string signature(sigLen, '\0');
-    if (EVP_DigestSignFinal(
-            ctx, reinterpret_cast<unsigned char *>(&signature[0]), &sigLen) != 1)
+    if (EVP_DigestSignFinal(ctx, reinterpret_cast<unsigned char *>(&signature[0]), &sigLen) != 1)
     {
         EVP_MD_CTX_free(ctx);
         return false;
@@ -273,7 +288,7 @@ DROGON_TEST(WechatPayClient_DecryptResource)
     const std::string aad = "transaction";
 
     const std::string ciphertextB64 =
-        encryptAesGcm(plaintext, nonce, aad, config["api_v3_key"].asString());
+      encryptAesGcm(plaintext, nonce, aad, config["api_v3_key"].asString());
     CHECK(!ciphertextB64.empty());
 
     std::string decrypted;
@@ -290,8 +305,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -312,8 +326,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback)
     CHECK(signMessage(message, pkey, signatureB64));
 
     std::string error;
-    CHECK(client.verifyCallback(timestamp, nonce, body, signatureB64, "SERIAL",
-                                error));
+    CHECK(client.verifyCallback(timestamp, nonce, body, signatureB64, "SERIAL", error));
     CHECK(error.empty());
 
     EVP_PKEY_free(pkey);
@@ -328,8 +341,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback_SerialMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -350,8 +362,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback_SerialMismatch)
     CHECK(signMessage(message, pkey, signatureB64));
 
     std::string error;
-    CHECK(!client.verifyCallback(timestamp, nonce, body, signatureB64,
-                                  "OTHER_SERIAL", error));
+    CHECK(!client.verifyCallback(timestamp, nonce, body, signatureB64, "OTHER_SERIAL", error));
     CHECK(error == "serial number mismatch with static config");
 
     EVP_PKEY_free(pkey);
@@ -367,8 +378,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback_MissingCert)
     WechatPayClient client(config);
 
     std::string error;
-    CHECK(!client.verifyCallback("1700000000", "nonce", "{}", "sig", "SERIAL",
-                                 error));
+    CHECK(!client.verifyCallback("1700000000", "nonce", "{}", "sig", "SERIAL", error));
     CHECK(error == "platform_cert_path is not configured");
 }
 
@@ -381,8 +391,7 @@ DROGON_TEST(WechatPayClient_DecryptResource_InvalidKey)
 
     std::string plaintext;
     std::string error;
-    CHECK(!client.decryptResource("ciphertext", "nonce", "aad", plaintext,
-                                  error));
+    CHECK(!client.decryptResource("ciphertext", "nonce", "aad", plaintext, error));
     CHECK(error == "api_v3_key must be 32 bytes");
 }
 
@@ -408,10 +417,8 @@ DROGON_TEST(WechatPayClient_DecryptResource_InvalidTag)
 
     std::string plaintext;
     std::string error;
-    const std::string fakeCiphertext =
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-    CHECK(!client.decryptResource(fakeCiphertext, "nonce", "aad", plaintext,
-                                  error));
+    const std::string fakeCiphertext = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    CHECK(!client.decryptResource(fakeCiphertext, "nonce", "aad", plaintext, error));
     CHECK(error == "decrypt final failed");
 }
 
@@ -422,8 +429,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback_InvalidSignature)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_test_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -443,8 +449,7 @@ DROGON_TEST(WechatPayClient_VerifyCallback_InvalidSignature)
     CHECK(signMessage("tampered\n", pkey, signatureB64));
 
     std::string error;
-    CHECK(!client.verifyCallback(timestamp, nonce, body, signatureB64, "SERIAL",
-                                  error));
+    CHECK(!client.verifyCallback(timestamp, nonce, body, signatureB64, "SERIAL", error));
     CHECK(error == "signature verify failed");
 
     EVP_PKEY_free(pkey);
@@ -471,10 +476,9 @@ DROGON_TEST(WechatPayClient_DownloadCertificates)
     WechatPayClient client(config);
 
     std::promise<std::string> promise;
-    client.downloadCertificates(
-        [&promise](const Json::Value &, const std::string &err) {
-            promise.set_value(err);
-        });
+    client.downloadCertificates([&promise](const Json::Value &, const std::string &err) {
+        promise.set_value(err);
+    });
 
     auto future = promise.get_future();
     CHECK(future.wait_for(std::chrono::seconds(5)) == std::future_status::ready);

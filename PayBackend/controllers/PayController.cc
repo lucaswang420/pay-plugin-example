@@ -6,8 +6,9 @@
 #include <stdexcept>
 
 void PayController::createPayment(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -61,7 +62,7 @@ void PayController::createPayment(
         {
             request.userId = req->attributes()->get<int64_t>("user_id");
         }
-        catch (const std::exception&)
+        catch (const std::exception &)
         {
             // For API key authentication, user_id is required
             Json::Value error;
@@ -99,9 +100,9 @@ void PayController::createPayment(
         requestJson["scene_info"] = request.sceneInfo;
 
         Json::StreamWriterBuilder builder;
-        idempotencyKey = "payment:" + request.orderNo + ":" +
-                        std::to_string(std::hash<std::string>{}(
-                            Json::writeString(builder, requestJson)));
+        idempotencyKey =
+          "payment:" + request.orderNo + ":" +
+          std::to_string(std::hash<std::string>{}(Json::writeString(builder, requestJson)));
     }
 
     // Get service and call
@@ -109,21 +110,21 @@ void PayController::createPayment(
     auto paymentService = plugin->paymentService();
 
     paymentService->createPayment(
-        request, idempotencyKey,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
+      request, idempotencyKey, [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      }
     );
 }
 
 void PayController::createQRPayment(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -146,8 +147,10 @@ void PayController::createQRPayment(
     }
 
     // Validate required fields
-    if (!json->isMember("order_no") || !json->isMember("amount") ||
-        !json->isMember("channel") || !json->isMember("user_id"))
+    if (
+      !json->isMember("order_no") || !json->isMember("amount") || !json->isMember("channel") ||
+      !json->isMember("user_id")
+    )
     {
         Json::Value error;
         error["code"] = 400;
@@ -188,21 +191,21 @@ void PayController::createQRPayment(
     auto paymentService = plugin->paymentService();
 
     paymentService->createQRPayment(
-        request,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
+      request, [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      }
     );
 }
 
 void PayController::queryOrder(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -231,36 +234,42 @@ void PayController::queryOrder(
     auto paymentService = plugin->paymentService();
 
     paymentService->queryOrder(
-        orderNo,
-        [callback, orderNo](const Json::Value& result, const std::error_code& error) {
-            LOG_DEBUG << "[PAY_CONTROLLER] queryOrder response for " << orderNo
-                      << " - code=" << result.get("code", "?").asString();
+      orderNo, [callback, orderNo](const Json::Value &result, const std::error_code &error) {
+          LOG_DEBUG << "[PAY_CONTROLLER] queryOrder response for " << orderNo
+                    << " - code=" << result.get("code", "?").asString();
 
-            // Safely access status field
-            if (result.isMember("data") && result["data"].isMember("status")) {
-                const auto& status = result["data"]["status"];
-                if (status.isString()) {
-                    LOG_DEBUG << " status=" << status.asString();
-                } else {
-                    LOG_DEBUG << " status=<non-string type>";
-                }
-            } else {
-                LOG_DEBUG << " status=<not found>";
-            }
+          // Safely access status field
+          if (result.isMember("data") && result["data"].isMember("status"))
+          {
+              const auto &status = result["data"]["status"];
+              if (status.isString())
+              {
+                  LOG_DEBUG << " status=" << status.asString();
+              }
+              else
+              {
+                  LOG_DEBUG << " status=<non-string type>";
+              }
+          }
+          else
+          {
+              LOG_DEBUG << " status=<not found>";
+          }
 
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      }
     );
 }
 
 void PayController::refund(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -328,9 +337,9 @@ void PayController::refund(
         requestJson["reason"] = request.reason;
 
         Json::StreamWriterBuilder builder;
-        idempotencyKey = "refund:" + request.orderNo + ":" +
-                        std::to_string(std::hash<std::string>{}(
-                            Json::writeString(builder, requestJson)));
+        idempotencyKey =
+          "refund:" + request.orderNo + ":" +
+          std::to_string(std::hash<std::string>{}(Json::writeString(builder, requestJson)));
     }
 
     // Get service and call
@@ -338,21 +347,21 @@ void PayController::refund(
     auto refundService = plugin->refundService();
 
     refundService->createRefund(
-        request, idempotencyKey,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
+      request, idempotencyKey, [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      }
     );
 }
 
 void PayController::queryRefund(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -378,30 +387,29 @@ void PayController::queryRefund(
     auto plugin = drogon::app().getPlugin<PayPlugin>();
     auto refundService = plugin->refundService();
 
-    refundService->queryRefund(
-        refundNo,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                // Map error code 1404 (Refund not found) to HTTP 404
-                if (error.value() == 1404)
-                {
-                    resp->setStatusCode(k404NotFound);
-                }
-                else
-                {
-                    resp->setStatusCode(k500InternalServerError);
-                }
-            }
-            callback(resp);
-        }
-    );
+    refundService
+      ->queryRefund(refundNo, [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              // Map error code 1404 (Refund not found) to HTTP 404
+              if (error.value() == 1404)
+              {
+                  resp->setStatusCode(k404NotFound);
+              }
+              else
+              {
+                  resp->setStatusCode(k500InternalServerError);
+              }
+          }
+          callback(resp);
+      });
 }
 
 void PayController::queryOrderList(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -424,7 +432,7 @@ void PayController::queryOrderList(
         {
             userId = std::stoll(userIdStr);
         }
-        catch (const std::exception&)
+        catch (const std::exception &)
         {
             Json::Value error;
             error["code"] = 400;
@@ -442,9 +450,10 @@ void PayController::queryOrderList(
         try
         {
             limit = std::stoul(limitStr);
-            if (limit > 100) limit = 100;  // Max limit
+            if (limit > 100)
+                limit = 100;  // Max limit
         }
-        catch (const std::exception&)
+        catch (const std::exception &)
         {
             Json::Value error;
             error["code"] = 400;
@@ -463,7 +472,7 @@ void PayController::queryOrderList(
         {
             offset = std::stoul(offsetStr);
         }
-        catch (const std::exception&)
+        catch (const std::exception &)
         {
             Json::Value error;
             error["code"] = 400;
@@ -476,33 +485,32 @@ void PayController::queryOrderList(
     }
 
     LOG_DEBUG << "[PAY_CONTROLLER] queryOrderList called with status=" << status
-              << ", userId=" << userId
-              << ", limit=" << limit
-              << ", offset=" << offset;
+              << ", userId=" << userId << ", limit=" << limit << ", offset=" << offset;
 
     // Get service and call
     auto plugin = drogon::app().getPlugin<PayPlugin>();
     auto paymentService = plugin->paymentService();
 
     paymentService->queryOrderList(
-        status,
-        userId,
-        limit,
-        offset,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
+      status,
+      userId,
+      limit,
+      offset,
+      [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      }
     );
 }
 
 void PayController::reconcileSummary(
-    const HttpRequestPtr &req,
-    std::function<void(const HttpResponsePtr &)> &&callback)
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
 {
     if (req->method() == Options)
     {
@@ -524,15 +532,13 @@ void PayController::reconcileSummary(
     auto plugin = drogon::app().getPlugin<PayPlugin>();
     auto paymentService = plugin->paymentService();
 
-    paymentService->reconcileSummary(
-        date,
-        [callback](const Json::Value& result, const std::error_code& error) {
-            auto resp = HttpResponse::newHttpJsonResponse(result);
-            if (error)
-            {
-                resp->setStatusCode(k500InternalServerError);
-            }
-            callback(resp);
-        }
-    );
+    paymentService
+      ->reconcileSummary(date, [callback](const Json::Value &result, const std::error_code &error) {
+          auto resp = HttpResponse::newHttpJsonResponse(result);
+          if (error)
+          {
+              resp->setStatusCode(k500InternalServerError);
+          }
+          callback(resp);
+      });
 }

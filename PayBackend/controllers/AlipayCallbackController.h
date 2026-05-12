@@ -9,11 +9,8 @@ class AlipayCallbackController : public drogon::HttpController<AlipayCallbackCon
 {
   public:
     METHOD_LIST_BEGIN
-    ADD_METHOD_TO(AlipayCallbackController::notify,
-                  "/api/pay/notify/alipay",
-                  Post);
+    ADD_METHOD_TO(AlipayCallbackController::notify, "/api/pay/notify/alipay", Post);
     METHOD_LIST_END
 
-    void notify(const HttpRequestPtr &req,
-                std::function<void(const HttpResponsePtr &)> &&callback);
+    void notify(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
 };

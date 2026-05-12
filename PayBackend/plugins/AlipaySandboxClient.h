@@ -30,8 +30,7 @@
 class AlipaySandboxClient
 {
   public:
-    using JsonCallback =
-        std::function<void(const Json::Value &result, const std::string &error)>;
+    using JsonCallback = std::function<void(const Json::Value &result, const std::string &error)>;
 
     explicit AlipaySandboxClient(const Json::Value &config);
 
@@ -41,8 +40,7 @@ class AlipaySandboxClient
      * @param payload Payment request parameters
      * @param callback Callback function
      */
-    void createTrade(const Json::Value &payload,
-                    JsonCallback &&callback);
+    void createTrade(const Json::Value &payload, JsonCallback &&callback);
 
     /**
      * @brief Precreate payment order (QR code payment)
@@ -50,8 +48,7 @@ class AlipaySandboxClient
      * @param payload Payment request parameters
      * @param callback Callback function
      */
-    void precreateTrade(const Json::Value &payload,
-                       JsonCallback &&callback);
+    void precreateTrade(const Json::Value &payload, JsonCallback &&callback);
 
     /**
      * @brief Query order status
@@ -59,8 +56,7 @@ class AlipaySandboxClient
      * @param outTradeNo Merchant order number
      * @param callback Callback function
      */
-    void queryTrade(const std::string &outTradeNo,
-                   JsonCallback &&callback);
+    void queryTrade(const std::string &outTradeNo, JsonCallback &&callback);
 
     /**
      * @brief Create refund
@@ -68,8 +64,7 @@ class AlipaySandboxClient
      * @param payload Refund request parameters
      * @param callback Callback function
      */
-    void refund(const Json::Value &payload,
-               JsonCallback &&callback);
+    void refund(const Json::Value &payload, JsonCallback &&callback);
 
     /**
      * @brief Query refund status
@@ -77,8 +72,7 @@ class AlipaySandboxClient
      * @param outTradeNo Merchant order number
      * @param callback Callback function
      */
-    void queryRefund(const std::string &outTradeNo,
-                   JsonCallback &&callback);
+    void queryRefund(const std::string &outTradeNo, JsonCallback &&callback);
 
     /**
      * @brief Close order
@@ -86,8 +80,7 @@ class AlipaySandboxClient
      * @param outTradeNo Merchant order number
      * @param callback Callback function
      */
-    void closeTrade(const std::string &outTradeNo,
-                   JsonCallback &&callback);
+    void closeTrade(const std::string &outTradeNo, JsonCallback &&callback);
 
     /**
      * @brief Verify Alipay callback signature
@@ -96,14 +89,20 @@ class AlipaySandboxClient
      * @param signature Signature
      * @return Verification success
      */
-    bool verifyCallback(const Json::Value &params,
-                       const std::string &signature);
+    bool verifyCallback(const Json::Value &params, const std::string &signature);
 
     /**
      * @brief Get sandbox application information
      */
-    const std::string &getAppId() const { return appId_; }
-    const std::string &getSellerId() const { return sellerId_; }
+    const std::string &getAppId() const
+    {
+        return appId_;
+    }
+
+    const std::string &getSellerId() const
+    {
+        return sellerId_;
+    }
 
     // Check if client is properly configured with valid credentials
     bool isConfigured() const;
@@ -116,12 +115,12 @@ class AlipaySandboxClient
   private:
     Json::Value config_;
     std::string appId_;
-    std::string sellerId_;              // Seller Alipay user ID (email)
-    std::string privateKeyPath_;        // Application private key file path
-    std::string alipayPublicKeyPath_;   // Alipay public key file path
-    std::string gatewayUrl_;            // Sandbox gateway URL
-    std::string notifyUrl_;             // Async callback URL
-    int timeoutMs_;                     // HTTP request timeout in milliseconds
+    std::string sellerId_;             // Seller Alipay user ID (email)
+    std::string privateKeyPath_;       // Application private key file path
+    std::string alipayPublicKeyPath_;  // Alipay public key file path
+    std::string gatewayUrl_;           // Sandbox gateway URL
+    std::string notifyUrl_;            // Async callback URL
+    int timeoutMs_;                    // HTTP request timeout in milliseconds
 
     // Load private key for signing
     std::string loadPrivateKey() const;
@@ -133,14 +132,15 @@ class AlipaySandboxClient
     std::string sign(const std::string &data) const;
 
     // Verify signature
-    bool verify(const std::string &data,
-               const std::string &signature) const;
+    bool verify(const std::string &data, const std::string &signature) const;
 
     // Build request parameters
     Json::Value buildCommonParams() const;
 
     // Send HTTP request
-    void sendRequest(const std::string &method,
-                    const Json::Value &bizContent,
-                    JsonCallback &&callback);
+    void sendRequest(
+      const std::string &method,
+      const Json::Value &bizContent,
+      JsonCallback &&callback
+    );
 };

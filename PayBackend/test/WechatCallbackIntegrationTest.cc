@@ -23,17 +23,17 @@ namespace
 bool loadConfig(Json::Value &root)
 {
     const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates = {
-        cwd / "config.json",
-        cwd / "test" / "Release" / "config.json",
-        cwd / "test" / "Debug" / "config.json",
-        cwd / "Release" / "config.json",
-        cwd / "Debug" / "config.json",
-        cwd.parent_path() / "config.json",
-        cwd.parent_path() / "test" / "Release" / "config.json",
-        cwd.parent_path() / "test" / "Debug" / "config.json",
-        cwd.parent_path() / "Release" / "config.json",
-        cwd.parent_path() / "Debug" / "config.json"};
+    const std::vector<std::filesystem::path> candidates =
+      {cwd / "config.json",
+       cwd / "test" / "Release" / "config.json",
+       cwd / "test" / "Debug" / "config.json",
+       cwd / "Release" / "config.json",
+       cwd / "Debug" / "config.json",
+       cwd.parent_path() / "config.json",
+       cwd.parent_path() / "test" / "Release" / "config.json",
+       cwd.parent_path() / "test" / "Debug" / "config.json",
+       cwd.parent_path() / "Release" / "config.json",
+       cwd.parent_path() / "Debug" / "config.json"};
 
     std::filesystem::path configPath;
     for (const auto &candidate : candidates)
@@ -70,8 +70,8 @@ std::string buildPgConnInfo(const Json::Value &db)
     const std::string user = db.get("user", "").asString();
     const std::string passwd = db.get("passwd", "").asString();
 
-    std::string connInfo = "host=" + host + " port=" + std::to_string(port) +
-                           " dbname=" + dbname + " user=" + user;
+    std::string connInfo =
+      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
     if (!passwd.empty())
     {
         connInfo += " password=" + passwd;
@@ -86,10 +86,12 @@ std::string toJsonCompact(const Json::Value &value)
     return Json::writeString(builder, value);
 }
 
-std::string encryptAesGcm(const std::string &plaintext,
-                          const std::string &nonce,
-                          const std::string &aad,
-                          const std::string &apiV3Key)
+std::string encryptAesGcm(
+  const std::string &plaintext,
+  const std::string &nonce,
+  const std::string &aad,
+  const std::string &apiV3Key
+)
 {
     const EVP_CIPHER *cipher = EVP_aes_256_gcm();
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -104,17 +106,23 @@ std::string encryptAesGcm(const std::string &plaintext,
         return {};
     }
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()),
-                            nullptr) != 1)
+    if (
+      EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce.size()), nullptr) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
     }
 
-    if (EVP_EncryptInit_ex(
-            ctx, nullptr, nullptr,
-            reinterpret_cast<const unsigned char *>(apiV3Key.data()),
-            reinterpret_cast<const unsigned char *>(nonce.data())) != 1)
+    if (
+      EVP_EncryptInit_ex(
+        ctx,
+        nullptr,
+        nullptr,
+        reinterpret_cast<const unsigned char *>(apiV3Key.data()),
+        reinterpret_cast<const unsigned char *>(nonce.data())
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
@@ -123,9 +131,15 @@ std::string encryptAesGcm(const std::string &plaintext,
     int outLen = 0;
     if (!aad.empty())
     {
-        if (EVP_EncryptUpdate(ctx, nullptr, &outLen,
-                              reinterpret_cast<const unsigned char *>(aad.data()),
-                              static_cast<int>(aad.size())) != 1)
+        if (
+          EVP_EncryptUpdate(
+            ctx,
+            nullptr,
+            &outLen,
+            reinterpret_cast<const unsigned char *>(aad.data()),
+            static_cast<int>(aad.size())
+          ) != 1
+        )
         {
             EVP_CIPHER_CTX_free(ctx);
             return {};
@@ -133,22 +147,25 @@ std::string encryptAesGcm(const std::string &plaintext,
     }
 
     std::string ciphertext(plaintext.size(), '\0');
-    if (EVP_EncryptUpdate(
-            ctx,
-            reinterpret_cast<unsigned char *>(&ciphertext[0]),
-            &outLen,
-            reinterpret_cast<const unsigned char *>(plaintext.data()),
-            static_cast<int>(plaintext.size())) != 1)
+    if (
+      EVP_EncryptUpdate(
+        ctx,
+        reinterpret_cast<unsigned char *>(&ciphertext[0]),
+        &outLen,
+        reinterpret_cast<const unsigned char *>(plaintext.data()),
+        static_cast<int>(plaintext.size())
+      ) != 1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
     }
     int totalLen = outLen;
 
-    if (EVP_EncryptFinal_ex(
-            ctx,
-            reinterpret_cast<unsigned char *>(&ciphertext[totalLen]),
-            &outLen) != 1)
+    if (
+      EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(&ciphertext[totalLen]), &outLen) !=
+      1
+    )
     {
         EVP_CIPHER_CTX_free(ctx);
         return {};
@@ -192,9 +209,10 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
         return false;
     }
 
-    if (BN_set_word(e, RSA_F4) != 1 ||
-        RSA_generate_key_ex(rsa, 2048, e, nullptr) != 1 ||
-        EVP_PKEY_assign_RSA(pkey, rsa) != 1)
+    if (
+      BN_set_word(e, RSA_F4) != 1 || RSA_generate_key_ex(rsa, 2048, e, nullptr) != 1 ||
+      EVP_PKEY_assign_RSA(pkey, rsa) != 1
+    )
     {
         RSA_free(rsa);
         BN_free(e);
@@ -217,9 +235,9 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
     X509_set_pubkey(cert, pkey);
 
     auto subjectName = X509_get_subject_name(cert);
-    X509_NAME_add_entry_by_txt(subjectName, "CN", MBSTRING_ASC,
-                               reinterpret_cast<const unsigned char *>("Test"),
-                               -1, -1, 0);
+    X509_NAME_add_entry_by_txt(
+      subjectName, "CN", MBSTRING_ASC, reinterpret_cast<const unsigned char *>("Test"), -1, -1, 0
+    );
     X509_set_issuer_name(cert, subjectName);
 
     if (X509_sign(cert, pkey, EVP_sha256()) == 0)
@@ -261,9 +279,7 @@ bool generateKeyAndCert(EVP_PKEY **outKey, std::string &certPem)
     return true;
 }
 
-bool signMessage(const std::string &message,
-                 EVP_PKEY *pkey,
-                 std::string &signatureB64)
+bool signMessage(const std::string &message, EVP_PKEY *pkey, std::string &signatureB64)
 {
     if (!pkey)
     {
@@ -291,8 +307,7 @@ bool signMessage(const std::string &message,
         return false;
     }
     std::string signature(sigLen, '\0');
-    if (EVP_DigestSignFinal(
-            ctx, reinterpret_cast<unsigned char *>(&signature[0]), &sigLen) != 1)
+    if (EVP_DigestSignFinal(ctx, reinterpret_cast<unsigned char *>(&signature[0]), &sigLen) != 1)
     {
         EVP_MD_CTX_free(ctx);
         return false;
@@ -319,22 +334,21 @@ DROGON_TEST(PayPlugin_WechatCallback_WechatClientNotReady)
 
     auto callbackService = plugin.callbackService();
     callbackService->handlePaymentCallback(
-        body,
-        signature,
-        timestamp,
-        nonce,
-        serial,
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      body,
+      signature,
+      timestamp,
+      nonce,
+      serial,
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
-    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
-    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) ==
-          std::future_status::ready);
+    CHECK(resultFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    CHECK(errorFuture.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
 
     const auto result = resultFuture.get();
     const auto error = errorFuture.get();
@@ -350,8 +364,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DbClientNotReady)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -378,15 +391,16 @@ DROGON_TEST(PayPlugin_WechatCallback_DbClientNotReady)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -417,58 +431,64 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -505,8 +525,7 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -549,8 +568,7 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -569,15 +587,16 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -587,34 +606,29 @@ DROGON_TEST(PayPlugin_WechatCallback_EndToEnd)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "SUCCESS");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAID");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT entry_type FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT entry_type FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["entry_type"].as<std::string>() == "PAYMENT");
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -637,49 +651,54 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -716,8 +735,7 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -760,17 +778,17 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     const std::string body = toJsonCompact(notify);
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        notifyId,
-        "hash",
-        "{}");
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      notifyId,
+      "hash",
+      "{}"
+    );
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -789,15 +807,16 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -811,8 +830,8 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     for (int i = 0; i < 20; ++i)
     {
         const auto callbackRows = client->execSqlSync(
-            "SELECT processed FROM pay_callback WHERE payment_no = $1",
-            paymentNo);
+          "SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo
+        );
         if (!callbackRows.empty())
         {
             callbackCount = static_cast<int64_t>(callbackRows.size());
@@ -823,13 +842,10 @@ DROGON_TEST(PayPlugin_WechatCallback_IdempotencyHitRecordsCallback)
     }
     CHECK(callbackCount >= 1);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notifyId);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", notifyId);
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -852,62 +868,68 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) UNIQUE NOT NULL,"
-        "user_id BIGINT NOT NULL,"
-        "amount VARCHAR(32) NOT NULL,"
-        "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
-        "title VARCHAR(512),"
-        "expire_at TIMESTAMP,"
-        "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) UNIQUE NOT NULL,"
+      "user_id BIGINT NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) UNIQUE NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
-        "amount VARCHAR(32) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "channel_trade_no VARCHAR(64),"
-        "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-        "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) UNIQUE NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -957,8 +979,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -990,8 +1011,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -1006,17 +1026,17 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     const std::string body = toJsonCompact(notify);
 
     client->execSqlSync(
-        "INSERT INTO pay_idempotency "
-        "(idempotency_key, request_hash, response_snapshot, expire_at) "
-        "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
-        notifyId,
-        "hash",
-        "{}");
+      "INSERT INTO pay_idempotency "
+      "(idempotency_key, request_hash, response_snapshot, expire_at) "
+      "VALUES ($1, $2, $3, NOW() + INTERVAL '1 day')",
+      notifyId,
+      "hash",
+      "{}"
+    );
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -1035,15 +1055,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handleRefundCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -1057,8 +1078,8 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     for (int i = 0; i < 20; ++i)
     {
         const auto callbackRows = client->execSqlSync(
-            "SELECT processed FROM pay_callback WHERE payment_no = $1",
-            paymentNo);
+          "SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo
+        );
         if (!callbackRows.empty())
         {
             callbackCount = static_cast<int64_t>(callbackRows.size());
@@ -1069,15 +1090,11 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundIdempotencyHitRecordsCallback)
     }
     CHECK(callbackCount >= 1);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notifyId);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", notifyId);
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -1100,58 +1117,64 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1188,8 +1211,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -1232,8 +1254,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -1252,15 +1273,16 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -1270,34 +1292,29 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionClosed)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "FAIL");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "CLOSED");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -1320,58 +1337,64 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1408,8 +1431,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -1452,8 +1474,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -1472,15 +1493,16 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -1490,34 +1512,29 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRevoked)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "FAIL");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "CLOSED");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -1540,58 +1557,64 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1628,8 +1651,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -1672,8 +1694,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -1692,15 +1713,16 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -1710,34 +1732,29 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionRefundState)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "FAIL");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "CLOSED");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -1760,58 +1777,64 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -1848,8 +1871,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -1892,8 +1914,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -1912,15 +1933,16 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -1930,34 +1952,29 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionUserPaying)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -1980,58 +1997,64 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2068,8 +2091,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -2112,8 +2134,7 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -2132,15 +2153,16 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -2150,34 +2172,29 @@ DROGON_TEST(PayPlugin_WechatCallback_TransactionNotPay)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -2200,58 +2217,64 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2288,8 +2311,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -2335,10 +2357,8 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
         const std::string body = toJsonCompact(notify);
 
         const std::string timestamp = "1700000000";
-        const std::string headerNonce =
-            "headerNonce_" + drogon::utils::getUuid();
-        const std::string message =
-            timestamp + "\n" + headerNonce + "\n" + body + "\n";
+        const std::string headerNonce = "headerNonce_" + drogon::utils::getUuid();
+        const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
         std::string signatureB64;
         CHECK(signMessage(message, pkey, signatureB64));
 
@@ -2354,15 +2374,16 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
         std::promise<Json::Value> resultPromise;
         std::promise<std::error_code> errorPromise;
         callbackService->handlePaymentCallback(
-            std::string(req->body()),
-            std::string(req->getHeader("Wechatpay-Signature")),
-            std::string(req->getHeader("Wechatpay-Timestamp")),
-            std::string(req->getHeader("Wechatpay-Nonce")),
-            std::string(req->getHeader("Wechatpay-Serial")),
-            [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-                resultPromise.set_value(result);
-                errorPromise.set_value(error);
-            });
+          std::string(req->body()),
+          std::string(req->getHeader("Wechatpay-Signature")),
+          std::string(req->getHeader("Wechatpay-Timestamp")),
+          std::string(req->getHeader("Wechatpay-Nonce")),
+          std::string(req->getHeader("Wechatpay-Serial")),
+          [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+              resultPromise.set_value(result);
+              errorPromise.set_value(error);
+          }
+        );
 
         auto resultFuture = resultPromise.get_future();
         auto errorFuture = errorPromise.get_future();
@@ -2379,22 +2400,19 @@ DROGON_TEST(PayPlugin_WechatCallback_DuplicatePaymentNoDoubleLedger)
     sendCallback(notifyId2);
 
     const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger "
-        "WHERE order_no = $1 AND entry_type = 'PAYMENT'",
-        orderNo);
+      "SELECT COUNT(*) AS cnt FROM pay_ledger "
+      "WHERE order_no = $1 AND entry_type = 'PAYMENT'",
+      orderNo
+    );
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 1);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notifyId1);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notifyId2);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", notifyId1);
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", notifyId2);
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -2417,49 +2435,54 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidSignature)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2496,8 +2519,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidSignature)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -2558,15 +2580,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidSignature)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -2576,21 +2599,17 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidSignature)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 
     EVP_PKEY_free(pkey);
@@ -2614,49 +2633,54 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2693,8 +2717,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -2722,8 +2745,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, correctApiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, correctApiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -2738,8 +2760,7 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -2758,15 +2779,16 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -2776,21 +2798,17 @@ DROGON_TEST(PayPlugin_WechatCallback_DecryptFailure)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 
     EVP_PKEY_free(pkey);
@@ -2814,49 +2832,54 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingSignatureHeaders)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -2917,15 +2940,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingSignatureHeaders)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -2935,21 +2959,17 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingSignatureHeaders)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 }
 
@@ -2973,8 +2993,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingResource)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -2996,8 +3015,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingResource)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3016,15 +3034,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingResource)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3059,8 +3078,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidJson)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3079,8 +3097,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidJson)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3099,15 +3116,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidJson)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3142,8 +3160,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceFields)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3169,8 +3186,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceFields)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3189,15 +3205,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceFields)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3232,8 +3249,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingEventType)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3252,8 +3268,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingEventType)
     const std::string plainText = "{}";
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3267,8 +3282,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingEventType)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3287,15 +3301,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingEventType)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3330,8 +3345,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundEventType)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3359,8 +3373,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundEventType)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3375,8 +3388,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundEventType)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3395,15 +3407,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundEventType)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3438,8 +3451,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTradeState)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3467,8 +3479,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTradeState)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3483,8 +3494,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTradeState)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3503,15 +3513,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTradeState)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3546,8 +3557,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingTransactionId)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3574,8 +3584,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingTransactionId)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3590,8 +3599,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingTransactionId)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3610,15 +3618,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingTransactionId)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3653,8 +3662,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAssociatedData)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3682,8 +3690,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAssociatedData)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3698,8 +3705,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAssociatedData)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3718,15 +3724,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAssociatedData)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3761,8 +3768,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTransactionAssociatedData)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3790,8 +3796,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTransactionAssociatedData)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -3806,8 +3811,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTransactionAssociatedData)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3826,15 +3830,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidTransactionAssociatedData)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3869,8 +3874,7 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedResourceType)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3896,8 +3900,7 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedResourceType)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -3916,15 +3919,16 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedResourceType)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -3959,8 +3963,7 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedAlgorithm)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -3986,8 +3989,7 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedAlgorithm)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4006,15 +4008,16 @@ DROGON_TEST(PayPlugin_WechatCallback_UnsupportedAlgorithm)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4049,8 +4052,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceJson)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4069,8 +4071,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceJson)
     const std::string plainText = "{";
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -4085,8 +4086,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceJson)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4105,15 +4105,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidResourceJson)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4148,8 +4149,7 @@ DROGON_TEST(PayPlugin_WechatCallback_SerialMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4176,8 +4176,7 @@ DROGON_TEST(PayPlugin_WechatCallback_SerialMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4196,15 +4195,16 @@ DROGON_TEST(PayPlugin_WechatCallback_SerialMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4235,49 +4235,54 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -4314,8 +4319,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4343,8 +4347,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -4359,8 +4362,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4379,15 +4381,16 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4397,21 +4400,17 @@ DROGON_TEST(PayPlugin_WechatCallback_AppIdMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 
     EVP_PKEY_free(pkey);
@@ -4435,64 +4434,71 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_refund "
-        "ADD COLUMN IF NOT EXISTS response_payload TEXT");
+      "ALTER TABLE pay_refund "
+      "ADD COLUMN IF NOT EXISTS response_payload TEXT"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -4543,8 +4549,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4575,8 +4580,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -4591,8 +4595,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4611,15 +4614,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4629,17 +4633,15 @@ DROGON_TEST(PayPlugin_WechatCallback_MchIdMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -4662,49 +4664,54 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -4741,8 +4748,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4770,8 +4776,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -4786,8 +4791,7 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -4806,15 +4810,16 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -4824,21 +4829,17 @@ DROGON_TEST(PayPlugin_WechatCallback_AmountMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 
     EVP_PKEY_free(pkey);
@@ -4862,49 +4863,54 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -4941,8 +4947,7 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -4970,8 +4975,7 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "transaction";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -4986,8 +4990,7 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -5006,15 +5009,16 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -5024,21 +5028,17 @@ DROGON_TEST(PayPlugin_WechatCallback_CurrencyMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT id FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT id FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.empty());
 
-    const auto updatedPayment = paymentMapper.findByPrimaryKey(
-        payment.getValueOfId());
+    const auto updatedPayment = paymentMapper.findByPrimaryKey(payment.getValueOfId());
     CHECK(updatedPayment.getValueOfStatus() == "PROCESSING");
 
-    const auto updatedOrder = orderMapper.findByPrimaryKey(
-        order.getValueOfId());
+    const auto updatedOrder = orderMapper.findByPrimaryKey(order.getValueOfId());
     CHECK(updatedOrder.getValueOfStatus() == "PAYING");
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
 
     EVP_PKEY_free(pkey);
@@ -5062,57 +5062,62 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -5163,8 +5168,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -5196,8 +5200,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -5212,8 +5215,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -5232,15 +5234,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handleRefundCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -5250,20 +5253,18 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUND_SUCCESS");
     CHECK(updatedRefund.getValueOfChannelRefundNo() == refundId);
     int64_t payloadReady = 0;
     for (int i = 0; i < 20; ++i)
     {
         const auto payloadRows = client->execSqlSync(
-            "SELECT response_payload FROM pay_refund WHERE refund_no = $1",
-            refundNo);
+          "SELECT response_payload FROM pay_refund WHERE refund_no = $1", refundNo
+        );
         if (!payloadRows.empty() && !payloadRows.front()["response_payload"].isNull())
         {
-            const auto payload =
-                payloadRows.front()["response_payload"].as<std::string>();
+            const auto payload = payloadRows.front()["response_payload"].as<std::string>();
             if (payload.find(refundId) != std::string::npos)
             {
                 payloadReady = 1;
@@ -5274,28 +5275,24 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundSuccess)
     }
     CHECK(payloadReady == 1);
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT entry_type FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT entry_type FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["entry_type"].as<std::string>() == "REFUND");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -5318,48 +5315,52 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -5410,8 +5411,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -5442,8 +5442,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -5458,8 +5457,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -5478,15 +5476,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -5496,17 +5495,15 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundAmountMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -5529,48 +5526,52 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -5621,8 +5622,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -5653,8 +5653,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -5669,8 +5668,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -5689,15 +5687,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -5707,17 +5706,15 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundCurrencyMismatch)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -5740,48 +5737,52 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -5820,8 +5821,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -5852,8 +5852,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -5868,8 +5867,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -5888,15 +5886,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handleRefundCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -5906,11 +5905,11 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundNotFound)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -5933,48 +5932,52 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -6025,8 +6028,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -6056,8 +6058,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -6072,8 +6073,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -6092,15 +6092,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -6110,17 +6111,15 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundMissingFields)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -6147,8 +6146,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingRefundId)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -6175,8 +6173,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingRefundId)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -6191,8 +6188,7 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingRefundId)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -6211,15 +6207,16 @@ DROGON_TEST(PayPlugin_WechatCallback_MissingRefundId)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -6250,69 +6247,76 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_callback ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "raw_body TEXT NOT NULL,"
-        "signature VARCHAR(512),"
-        "serial_no VARCHAR(64),"
-        "verified BOOLEAN NOT NULL DEFAULT FALSE,"
-        "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-        "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_callback ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "raw_body TEXT NOT NULL,"
+      "signature VARCHAR(512),"
+      "serial_no VARCHAR(64),"
+      "verified BOOLEAN NOT NULL DEFAULT FALSE,"
+      "processed BOOLEAN NOT NULL DEFAULT FALSE,"
+      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "ALTER TABLE pay_callback "
-        "ALTER COLUMN signature TYPE VARCHAR(512)");
+      "ALTER TABLE pay_callback "
+      "ALTER COLUMN signature TYPE VARCHAR(512)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_ledger ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "user_id BIGINT NOT NULL,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64),"
-        "entry_type VARCHAR(16) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_ledger ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "user_id BIGINT NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64),"
+      "entry_type VARCHAR(16) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -6362,8 +6366,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -6391,8 +6394,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -6407,8 +6409,7 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -6427,15 +6428,16 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handleRefundCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -6445,32 +6447,27 @@ DROGON_TEST(PayPlugin_WechatCallback_RefundClosed)
     const auto error = errorFuture.get();
     CHECK(!error);
 
-    const auto updatedRefund = refundMapper.findByPrimaryKey(
-        refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUND_FAIL");
 
-    const auto callbackRows = client->execSqlSync(
-        "SELECT processed FROM pay_callback WHERE payment_no = $1",
-        paymentNo);
+    const auto callbackRows =
+      client->execSqlSync("SELECT processed FROM pay_callback WHERE payment_no = $1", paymentNo);
     CHECK(callbackRows.size() >= 1);
     CHECK(callbackRows.front()["processed"].as<bool>());
 
-    const auto ledgerRows = client->execSqlSync(
-        "SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1",
-        orderNo);
+    const auto ledgerRows =
+      client->execSqlSync("SELECT COUNT(*) AS cnt FROM pay_ledger WHERE order_no = $1", orderNo);
     CHECK(ledgerRows.size() >= 1);
     CHECK(ledgerRows.front()["cnt"].as<int64_t>() == 0);
 
-    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1",
-                        paymentNo);
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_callback WHERE payment_no = $1", paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_ledger WHERE order_no = $1", orderNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -6493,48 +6490,52 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -6585,8 +6586,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -6617,8 +6617,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -6633,8 +6632,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -6653,15 +6651,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -6671,17 +6670,15 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundStatus)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;
@@ -6704,48 +6701,52 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
     CHECK(client != nullptr);
 
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-        "idempotency_key VARCHAR(64) PRIMARY KEY,"
-        "request_hash VARCHAR(64) NOT NULL,"
-        "response_snapshot TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "expire_at TIMESTAMPTZ NOT NULL)");
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(64) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "expire_at TIMESTAMPTZ NOT NULL)"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_order ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "order_no VARCHAR(64) NOT NULL UNIQUE,"
-        "user_id BIGINT NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "currency VARCHAR(16) NOT NULL,"
-        "status VARCHAR(24) NOT NULL,"
-        "channel VARCHAR(16) NOT NULL,"
-        "title VARCHAR(128) NOT NULL,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_order ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "user_id BIGINT NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "currency VARCHAR(16) NOT NULL,"
+      "status VARCHAR(24) NOT NULL,"
+      "channel VARCHAR(16) NOT NULL,"
+      "title VARCHAR(128) NOT NULL,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_payment ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "channel_trade_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "request_payload TEXT,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_payment ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "channel_trade_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
     client->execSqlSync(
-        "CREATE TABLE IF NOT EXISTS pay_refund ("
-        "id BIGSERIAL PRIMARY KEY,"
-        "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-        "order_no VARCHAR(64) NOT NULL,"
-        "payment_no VARCHAR(64) NOT NULL,"
-        "channel_refund_no VARCHAR(64),"
-        "status VARCHAR(24) NOT NULL,"
-        "amount DECIMAL(18,2) NOT NULL,"
-        "response_payload TEXT,"
-        "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-        "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+      "CREATE TABLE IF NOT EXISTS pay_refund ("
+      "id BIGSERIAL PRIMARY KEY,"
+      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) NOT NULL,"
+      "payment_no VARCHAR(64) NOT NULL,"
+      "channel_refund_no VARCHAR(64),"
+      "status VARCHAR(24) NOT NULL,"
+      "amount DECIMAL(18,2) NOT NULL,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
+      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+    );
 
     const std::string orderNo = "ord_" + drogon::utils::getUuid();
     const std::string paymentNo = "pay_" + drogon::utils::getUuid();
@@ -6796,8 +6797,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
     CHECK(generateKeyAndCert(&pkey, certPem));
 
     const auto tempDir = std::filesystem::temp_directory_path();
-    const auto certPath =
-        tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
+    const auto certPath = tempDir / ("wechatpay_cb_" + drogon::utils::getUuid() + ".pem");
     {
         std::ofstream out(certPath.string(), std::ios::binary);
         out << certPem;
@@ -6828,8 +6828,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
 
     const std::string nonce = "nonce123";
     const std::string aad = "refund";
-    const std::string ciphertext =
-        encryptAesGcm(plainText, nonce, aad, apiV3Key);
+    const std::string ciphertext = encryptAesGcm(plainText, nonce, aad, apiV3Key);
     CHECK(!ciphertext.empty());
 
     Json::Value notify;
@@ -6844,8 +6843,7 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
 
     const std::string timestamp = "1700000000";
     const std::string headerNonce = "headerNonce";
-    const std::string message =
-        timestamp + "\n" + headerNonce + "\n" + body + "\n";
+    const std::string message = timestamp + "\n" + headerNonce + "\n" + body + "\n";
     std::string signatureB64;
     CHECK(signMessage(message, pkey, signatureB64));
 
@@ -6864,15 +6862,16 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
     std::promise<Json::Value> resultPromise;
     std::promise<std::error_code> errorPromise;
     callbackService->handlePaymentCallback(
-        std::string(req->body()),
-        std::string(req->getHeader("Wechatpay-Signature")),
-        std::string(req->getHeader("Wechatpay-Timestamp")),
-        std::string(req->getHeader("Wechatpay-Nonce")),
-        std::string(req->getHeader("Wechatpay-Serial")),
-        [&resultPromise, &errorPromise](const Json::Value& result, const std::error_code& error) {
-            resultPromise.set_value(result);
-            errorPromise.set_value(error);
-        });
+      std::string(req->body()),
+      std::string(req->getHeader("Wechatpay-Signature")),
+      std::string(req->getHeader("Wechatpay-Timestamp")),
+      std::string(req->getHeader("Wechatpay-Nonce")),
+      std::string(req->getHeader("Wechatpay-Serial")),
+      [&resultPromise, &errorPromise](const Json::Value &result, const std::error_code &error) {
+          resultPromise.set_value(result);
+          errorPromise.set_value(error);
+      }
+    );
 
     auto resultFuture = resultPromise.get_future();
     auto errorFuture = errorPromise.get_future();
@@ -6882,17 +6881,15 @@ DROGON_TEST(PayPlugin_WechatCallback_InvalidRefundAmount)
     const auto error = errorFuture.get();
     CHECK(error);
 
-    const auto updatedRefund =
-        refundMapper.findByPrimaryKey(refund.getValueOfId());
+    const auto updatedRefund = refundMapper.findByPrimaryKey(refund.getValueOfId());
     CHECK(updatedRefund.getValueOfStatus() == "REFUNDING");
 
-    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1",
-                        refundNo);
-    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1",
-                        paymentNo);
+    client->execSqlSync("DELETE FROM pay_refund WHERE refund_no = $1", refundNo);
+    client->execSqlSync("DELETE FROM pay_payment WHERE payment_no = $1", paymentNo);
     client->execSqlSync("DELETE FROM pay_order WHERE order_no = $1", orderNo);
-    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1",
-                        notify["id"].asString());
+    client->execSqlSync(
+      "DELETE FROM pay_idempotency WHERE idempotency_key = $1", notify["id"].asString()
+    );
 
     EVP_PKEY_free(pkey);
     std::error_code ec;

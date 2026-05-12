@@ -31,40 +31,42 @@
 #include <memory>
 #include <string>
 
-class CallbackService {
-public:
-    using CallbackResult = std::function<void(const Json::Value& result, const std::error_code& error)>;
+class CallbackService
+{
+  public:
+    using CallbackResult =
+      std::function<void(const Json::Value &result, const std::error_code &error)>;
 
     CallbackService(
-        std::shared_ptr<WechatPayClient> wechatClient,
-        std::shared_ptr<drogon::orm::DbClient> dbClient
+      std::shared_ptr<WechatPayClient> wechatClient,
+      std::shared_ptr<drogon::orm::DbClient> dbClient
     );
 
     void handlePaymentCallback(
-        const std::string& body,
-        const std::string& signature,
-        const std::string& timestamp,
-        const std::string& nonce,
-        const std::string& serialNo,
-        CallbackResult&& callback
+      const std::string &body,
+      const std::string &signature,
+      const std::string &timestamp,
+      const std::string &nonce,
+      const std::string &serialNo,
+      CallbackResult &&callback
     );
 
     void handleRefundCallback(
-        const std::string& body,
-        const std::string& signature,
-        const std::string& timestamp,
-        const std::string& nonce,
-        const std::string& serialNo,
-        CallbackResult&& callback
+      const std::string &body,
+      const std::string &signature,
+      const std::string &timestamp,
+      const std::string &nonce,
+      const std::string &serialNo,
+      CallbackResult &&callback
     );
 
-private:
+  private:
     bool verifySignature(
-        const std::string& body,
-        const std::string& signature,
-        const std::string& timestamp,
-        const std::string& nonce,
-        const std::string& serialNo
+      const std::string &body,
+      const std::string &signature,
+      const std::string &timestamp,
+      const std::string &nonce,
+      const std::string &serialNo
     );
 
     std::shared_ptr<WechatPayClient> wechatClient_;
