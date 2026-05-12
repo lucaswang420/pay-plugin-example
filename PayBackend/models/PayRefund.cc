@@ -10,6 +10,7 @@
 #include "PayPayment.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
+#include "orm_compat.h"
 
 using namespace drogon;
 using namespace drogon::orm;
