@@ -20,7 +20,7 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
+          POSTGRES_PASSWORD: 123456
           POSTGRES_DB: pay_test
         ports:
           - 5432:5432
@@ -94,7 +94,7 @@ jobs:
         run: |
           echo "Waiting for Postgres..."
           for i in $(seq 1 15); do
-            pg_isready -h localhost -U test && break
+            PGPASSWORD=123456 pg_isready -h localhost -U test && break
             echo "  Postgres not ready yet (attempt $i/15)..."
             sleep 2
           done
@@ -108,7 +108,7 @@ jobs:
       - name: Initialize Database
         working-directory: ${{github.workspace}}/PayBackend
         env:
-          PGPASSWORD: test
+          PGPASSWORD: 123456
         run: |
           psql -h localhost -U test -d pay_test -f sql/001_init.sql || echo "Database init script not found or already initialized"
 
@@ -118,6 +118,7 @@ jobs:
           PAY_REDIS_PASSWORD: ""
           PAY_DB_HOST: "127.0.0.1"
           PAY_REDIS_HOST: "127.0.0.1"
+          PAY_DB_PASSWORD: "123456"
         run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
 
       - name: Upload test logs on failure
