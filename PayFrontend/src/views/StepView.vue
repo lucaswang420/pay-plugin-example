@@ -483,6 +483,29 @@
           </div>
         </div>
 
+        <!-- 二维码显示区域（仅待支付订单显示） -->
+        <div v-if="orderStore.currentOrder.status === 'PENDING' || orderStore.currentOrder.status === 'PAYING'" class="info-section">
+          <h3>Payment QR Code</h3>
+          <div v-if="orderStore.currentOrder.status === 'PAYING' && !detailQrCodeUrl && !detailQrError" class="info-message">
+            <p>ℹ️ 订单正在支付中，请使用之前扫描的二维码完成支付</p>
+          </div>
+          <div v-else class="qr-container">
+            <div v-if="detailQrLoading" class="qr-loading">Generating QR code...</div>
+            <div v-else-if="detailQrError" class="error-message">{{ detailQrError }}</div>
+            <div v-else-if="detailQrCodeUrl" class="qr-wrapper">
+              <canvas ref="detailQrCanvas"></canvas>
+              <p class="qr-instruction">
+                Use Alipay Sandbox App to scan the QR code
+              </p>
+            </div>
+            <div v-else class="qr-placeholder">
+              <button @click="handleGenerateQRForDetail" :disabled="detailQrGenerating" class="primary">
+                {{ detailQrGenerating ? 'Generating...' : 'Generate QR Code' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- 渠道响应信息 -->
         <div v-if="orderStore.currentOrder.channel_response" class="info-section">
           <h3>Channel Response</h3>
@@ -491,6 +514,13 @@
 
         <!-- 操作按钮 -->
         <div class="button-group">
+          <button
+            v-if="orderStore.currentOrder.status === 'PENDING' || orderStore.currentOrder.status === 'PAYING'"
+            @click="handleRefreshOrderDetail"
+            :disabled="detailRefreshing"
+          >
+            {{ detailRefreshing ? 'Refreshing...' : 'Refresh Status' }}
+          </button>
           <button
             v-if="orderStore.currentOrder.status === 'PAID'"
             @click="handleGoToRefundFromDetail"
@@ -501,6 +531,12 @@
           <button @click="handleBackToOrdersFromDetail" class="secondary">
             Back to Orders
           </button>
+        </div>
+
+        <!-- 轮询状态提示 -->
+        <div v-if="isDetailPolling" class="polling-indicator">
+          <span class="pulse"></span>
+          Checking payment status automatically...
         </div>
       </div>
 
@@ -571,6 +607,16 @@ const queryForm = ref({
 const queryLoading = ref(false)
 const queryError = ref('')
 
+// Step 6 订单详情相关
+const detailQrCodeUrl = ref('')
+const detailQrCanvas = ref(null)
+const detailQrLoading = ref(false)
+const detailQrError = ref('')
+const detailQrGenerating = ref(false)
+const detailRefreshing = ref(false)
+const isDetailPolling = ref(false)
+const detailPollingTimer = ref(null)
+
 async function handleCreateOrder() {
   // 从环境变量或sessionStorage获取userId和apiKey
   if (!userStore.userId || !userStore.apiKey) {
@@ -610,6 +656,8 @@ async function handleCreateOrder() {
     // 如果响应中包含二维码，直接使用
     if (orderData.qr_code || alipayData.qr_code) {
       qrCodeUrl.value = orderData.qr_code || alipayData.qr_code
+      // 保存二维码URL到localStorage
+      orderStore.updateOrder({ qrCodeUrl: qrCodeUrl.value })
     }
 
     // 自动跳转到 Step 2
@@ -639,6 +687,8 @@ async function generateQRCode() {
 
     if (response.data && response.data.qr_code) {
       qrCodeUrl.value = response.data.qr_code
+      // 保存二维码URL到localStorage
+      orderStore.updateOrder({ qrCodeUrl: qrCodeUrl.value })
     } else {
       throw new Error('No QR code in response')
     }
@@ -679,6 +729,19 @@ async function handleRefresh() {
       status: response.data.status,
       tradeNo: response.data.alipay_response?.trade_no || orderStore.tradeNo
     })
+
+    // If order is still pending or paying, ensure QR code is displayed
+    if (response.data.status === 'PENDING' || response.data.status === 'PAYING') {
+      // Re-render QR code if URL exists
+      if (qrCodeUrl.value) {
+        await nextTick()
+        await renderQRCodeImpl()
+      }
+      // Otherwise generate new QR code
+      else {
+        await generateQRCode()
+      }
+    }
   } catch (err) {
     error.value = err.message || 'Failed to refresh order status'
   } finally {
@@ -802,7 +865,9 @@ async function loadOrders() {
 
   try {
     const params = {}
-    if (orderStore.orderFilter !== 'all') {
+    // 对于"Pending Payment"筛选器，需要同时获取PENDING和PAYING状态的订单
+    // 所以不发送status参数，在前端进行筛选
+    if (orderStore.orderFilter !== 'all' && orderStore.orderFilter !== 'PENDING') {
       params.status = orderStore.orderFilter
     }
     console.log('[loadOrders] Fetching orders with params:', params)
@@ -819,6 +884,13 @@ async function loadOrders() {
     }
 
     console.log('[loadOrders] Final orders array:', orders)
+
+    // 如果筛选器是"Pending Payment"，在前端筛选PENDING和PAYING状态
+    if (orderStore.orderFilter === 'PENDING') {
+      orders = orders.filter(order => order.status === 'PENDING' || order.status === 'PAYING')
+      console.log('[loadOrders] Filtered for PENDING/PAYING:', orders)
+    }
+
     orderStore.setOrders(orders)
 
     // 自动同步所有PAYING状态的订单
@@ -953,7 +1025,13 @@ async function handleQueryRefund() {
   queryError.value = ''
 
   try {
-    const response = await paymentApi.queryRefund(queryForm.value.orderNo)
+    // 优先使用 refundInfo 中的 refund_no，如果没有则使用表单输入的值
+    const refundNo = orderStore.refundInfo?.refund_no || queryForm.value.orderNo
+    if (!refundNo) {
+      queryError.value = 'Please enter refund no'
+      return
+    }
+    const response = await paymentApi.queryRefund(refundNo)
     orderStore.setRefundInfo(response.data)
   } catch (err) {
     queryError.value = err.message || 'Failed to query refund status'
@@ -963,7 +1041,7 @@ async function handleQueryRefund() {
 }
 
 async function handleRefreshRefund() {
-  if (orderStore.refundInfo?.order_no) {
+  if (orderStore.refundInfo?.refund_no) {
     await handleQueryRefund()
   }
 }
@@ -999,7 +1077,145 @@ function handleGoToRefundFromDetail() {
 }
 
 function handleBackToOrdersFromDetail() {
+  stopDetailPolling()
   router.push('/step/3')
+}
+
+// Step 6 生成二维码
+async function handleGenerateQRForDetail() {
+  if (!orderStore.currentOrder?.order_no || !userStore.userId) {
+    detailQrError.value = '缺少必要信息，无法生成二维码'
+    return
+  }
+
+  detailQrGenerating.value = true
+  detailQrError.value = ''
+
+  try {
+    const response = await paymentApi.createQRPayment({
+      order_no: orderStore.currentOrder.order_no,
+      amount: orderStore.currentOrder.amount,
+      channel: 'alipay',
+      user_id: userStore.userId,
+      subject: orderStore.currentOrder.title || orderStore.currentOrder.product_name || 'Payment'
+    })
+
+    if (response.data && response.data.qr_code) {
+      detailQrCodeUrl.value = response.data.qr_code
+      // 保存二维码URL到localStorage
+      orderStore.updateOrder({ qrCodeUrl: detailQrCodeUrl.value })
+      await nextTick()
+      await renderDetailQRCode()
+      startDetailPolling()
+    } else {
+      detailQrError.value = 'Failed to generate QR code: no QR code in response'
+    }
+  } catch (err) {
+    detailQrError.value = err.message || 'Failed to generate QR code'
+  } finally {
+    detailQrGenerating.value = false
+  }
+}
+
+// Step 6 刷新订单详情
+async function handleRefreshOrderDetail() {
+  if (!orderStore.currentOrder?.order_no) {
+    return
+  }
+
+  detailRefreshing.value = true
+  detailQrError.value = ''
+
+  try {
+    const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
+    orderStore.setCurrentOrder(response.data)
+
+    // 如果支付完成，停止轮询
+    if (response.data.status === 'PAID') {
+      stopDetailPolling()
+      detailQrCodeUrl.value = ''
+    }
+  } catch (err) {
+    detailQrError.value = err.message || 'Failed to refresh order status'
+  } finally {
+    detailRefreshing.value = false
+  }
+}
+
+// Step 6 渲染二维码
+async function renderDetailQRCode() {
+  if (!detailQrCanvas.value || !detailQrCodeUrl.value) {
+    return
+  }
+
+  try {
+    await QRCode.toCanvas(detailQrCanvas.value, detailQrCodeUrl.value, {
+      width: 256,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+  } catch (err) {
+    console.error('Failed to render detail QR code:', err)
+    detailQrError.value = 'Failed to render QR code: ' + err.message
+  }
+}
+
+// Step 6 开始轮询
+function startDetailPolling() {
+  if (isDetailPolling.value) {
+    console.log('[DETAIL POLLING] Already polling, skipping duplicate request')
+    return
+  }
+
+  stopDetailPolling()
+  isDetailPolling.value = true
+
+  detailPollingTimer.value = setInterval(async () => {
+    if (!orderStore.currentOrder?.order_no) {
+      return
+    }
+
+    try {
+      console.log('[DETAIL POLLING] Querying order status for:', orderStore.currentOrder.order_no)
+      const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
+
+      if (!response?.data) {
+        console.error('[DETAIL POLLING] Invalid response')
+        return
+      }
+
+      orderStore.setCurrentOrder(response.data)
+
+      if (response.data.status === 'PAID') {
+        stopDetailPolling()
+        detailQrCodeUrl.value = ''
+        console.log('[DETAIL POLLING] Payment completed!')
+      } else if (response.data.status === 'FAILED') {
+        stopDetailPolling()
+        detailQrError.value = 'Payment failed. Please try again.'
+        console.log('[DETAIL POLLING] Payment failed')
+      } else {
+        console.log('[DETAIL POLLING] Payment not completed yet, status:', response.data.status)
+      }
+    } catch (err) {
+      console.error('[DETAIL POLLING] Polling error:', err)
+    }
+  }, 5000)
+
+  console.log('[DETAIL POLLING] Started polling for order:', orderStore.currentOrder.order_no)
+}
+
+// Step 6 停止轮询
+function stopDetailPolling() {
+  if (detailPollingTimer.value) {
+    clearInterval(detailPollingTimer.value)
+    detailPollingTimer.value = null
+    console.log('[DETAIL POLLING] Polling stopped')
+  }
+  isDetailPolling.value = false
 }
 
 // Render QR code when component is mounted
@@ -1033,18 +1249,257 @@ onMounted(async () => {
   }
 
   // Step 5: 如果有退款信息，自动查询最新状态
-  if (props.stepNumber === '5' && orderStore.refundInfo?.order_no) {
+  if (props.stepNumber === '5' && orderStore.refundInfo?.refund_no) {
     await handleQueryRefund()
   }
 
   // Step 6: 查询订单详情
-  if (props.stepNumber === '6' && orderStore.currentOrder?.order_no) {
+  if (props.stepNumber === '6') {
+    console.log('[Step 6] Entered Step 6 logic')
+    console.log('[Step 6] currentOrder:', orderStore.currentOrder)
+
+    if (!orderStore.currentOrder?.order_no) {
+      console.log('[Step 6] No order_no in currentOrder, skipping')
+      return
+    }
+
+    console.log('[Step 6] Processing order:', orderStore.currentOrder.order_no)
+
+    // 在调用API之前，先保存从订单列表传来的 channel_response（包含qr_code）
+    const existingChannelResponse = orderStore.currentOrder?.channel_response
+    console.log('[Step 6] Saved existing channel_response from order list:', existingChannelResponse)
+
     queryLoading.value = true
     queryError.value = ''
     try {
       const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
-      orderStore.setCurrentOrder(response.data)
+      console.log('[Step 6] API response received:', response)
+      console.log('[Step 6] Full response.data:', response.data)
+
+      // 合并订单列表数据和API响应数据，优先保留订单列表中的 channel_response（包含qr_code）
+      const mergedOrder = {
+        ...response.data,
+        channel_response: existingChannelResponse || response.data.channel_response
+      }
+
+      console.log('[Step 6] Merged order data:', mergedOrder)
+      orderStore.setCurrentOrder(mergedOrder)
+
+      // 先从localStorage读取保存的二维码URL
+      const savedQrCode = orderStore.getQrCodeUrl(orderStore.currentOrder.order_no)
+
+      // 从多个可能的字段中读取二维码URL
+      let backendQrCode = null
+
+      // 优先从 orderStore.currentOrder.channel_response 中读取（创建订单时保存的数据）
+      if (orderStore.currentOrder.channel_response) {
+        const channelResp = orderStore.currentOrder.channel_response
+        console.log('[Step 6] Found channel_response in currentOrder, type:', typeof channelResp)
+        console.log('[Step 6] channel_response content:', channelResp)
+        if (typeof channelResp === 'string') {
+          try {
+            const parsed = JSON.parse(channelResp)
+            console.log('[Step 6] Parsed channel_response:', parsed)
+            if (parsed.qr_code) {
+              backendQrCode = parsed.qr_code
+              console.log('[Step 6] Found qr_code in currentOrder.channel_response (string JSON):', backendQrCode)
+            }
+          } catch (e) {
+            console.warn('[Step 6] Failed to parse channel_response:', e)
+          }
+        } else if (typeof channelResp === 'object') {
+          console.log('[Step 6] channel_response is object, keys:', Object.keys(channelResp))
+          if (channelResp.qr_code) {
+            backendQrCode = channelResp.qr_code
+            console.log('[Step 6] Found qr_code in currentOrder.channel_response (object):', backendQrCode)
+          } else {
+            console.warn('[Step 6] channel_response object does not have qr_code property')
+          }
+        }
+      } else {
+        console.log('[Step 6] No channel_response found in currentOrder')
+      }
+
+      // 如果 currentOrder 中没有，再从 API 响应中读取
+      if (!backendQrCode && response.data.qr_code) {
+        backendQrCode = response.data.qr_code
+        console.log('[Step 6] Found qr_code in response.data.qr_code')
+      }
+      if (!backendQrCode && response.data.alipay_response?.qr_code) {
+        backendQrCode = response.data.alipay_response.qr_code
+        console.log('[Step 6] Found qr_code in response.data.alipay_response')
+      }
+
+      const finalQrCode = savedQrCode || backendQrCode
+
+      console.log('[Step 6] QR code extraction result:', {
+        saved: savedQrCode,
+        backend: backendQrCode,
+        final: finalQrCode,
+        hasChannelResponse: !!response.data.channel_response,
+        channelResponseType: typeof response.data.channel_response
+      })
+
+      // 根据订单状态处理二维码
+      if (response.data.status === 'PENDING') {
+        // PENDING状态：如果有保存的二维码URL，直接使用；否则生成新的
+        if (finalQrCode) {
+          console.log('[Step 6] PENDING status: Using saved QR code')
+          detailQrCodeUrl.value = finalQrCode
+          await nextTick()
+          await renderDetailQRCode()
+          startDetailPolling()
+        } else {
+          console.log('[Step 6] PENDING status: No QR code found, generating new one')
+          await handleGenerateQRForDetail()
+        }
+      } else if (response.data.status === 'PAYING') {
+        // PAYING状态：优先使用已有的二维码URL
+        console.log('[Step 6] PAYING status: finalQrCode =', finalQrCode)
+        if (finalQrCode) {
+          console.log('[Step 6] PAYING status: Using existing QR code from order list')
+          detailQrCodeUrl.value = finalQrCode
+          detailQrError.value = ''
+          await nextTick()
+          await renderDetailQRCode()
+          startDetailPolling()
+        } else {
+          // PAYING状态但没有找到二维码：显示提示信息
+          console.log('[Step 6] PAYING status: No QR code found, showing error message')
+          detailQrError.value = '订单正在支付中，请使用之前扫描的二维码完成支付'
+        }
+      }
     } catch (err) {
+      console.error('[Step 6] Error:', err)
+      queryError.value = err.message || 'Failed to query order details'
+    } finally {
+      queryLoading.value = false
+    }
+  }
+})
+
+// Watch for step changes to handle route navigation within the same component
+watch(() => props.stepNumber, async (newStep, oldStep) => {
+  console.log('[Watch] Step changed from', oldStep, 'to', newStep)
+
+  // Step 6: 查询订单详情
+  if (newStep === '6') {
+    console.log('[Step 6] Entered Step 6 logic (from watch)')
+    console.log('[Step 6] currentOrder:', orderStore.currentOrder)
+
+    if (!orderStore.currentOrder?.order_no) {
+      console.log('[Step 6] No order_no in currentOrder, skipping')
+      return
+    }
+
+    console.log('[Step 6] Processing order:', orderStore.currentOrder.order_no)
+
+    // 在调用API之前，先保存从订单列表传来的 channel_response（包含qr_code）
+    const existingChannelResponse = orderStore.currentOrder?.channel_response
+    console.log('[Step 6] Saved existing channel_response from order list:', existingChannelResponse)
+
+    queryLoading.value = true
+    queryError.value = ''
+    try {
+      const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
+      console.log('[Step 6] API response received:', response)
+      console.log('[Step 6] Full response.data:', response.data)
+
+      // 合并订单列表数据和API响应数据，优先保留订单列表中的 channel_response（包含qr_code）
+      const mergedOrder = {
+        ...response.data,
+        channel_response: existingChannelResponse || response.data.channel_response
+      }
+
+      console.log('[Step 6] Merged order data:', mergedOrder)
+      orderStore.setCurrentOrder(mergedOrder)
+
+      // 先从localStorage读取保存的二维码URL
+      const savedQrCode = orderStore.getQrCodeUrl(orderStore.currentOrder.order_no)
+
+      // 从多个可能的字段中读取二维码URL
+      let backendQrCode = null
+
+      // 优先从 orderStore.currentOrder.channel_response 中读取（创建订单时保存的数据）
+      if (orderStore.currentOrder.channel_response) {
+        const channelResp = orderStore.currentOrder.channel_response
+        console.log('[Step 6] Found channel_response in currentOrder, type:', typeof channelResp)
+        console.log('[Step 6] channel_response content:', channelResp)
+        if (typeof channelResp === 'string') {
+          try {
+            const parsed = JSON.parse(channelResp)
+            console.log('[Step 6] Parsed channel_response:', parsed)
+            if (parsed.qr_code) {
+              backendQrCode = parsed.qr_code
+              console.log('[Step 6] Found qr_code in currentOrder.channel_response (string JSON):', backendQrCode)
+            }
+          } catch (e) {
+            console.warn('[Step 6] Failed to parse channel_response:', e)
+          }
+        } else if (typeof channelResp === 'object') {
+          console.log('[Step 6] channel_response is object, keys:', Object.keys(channelResp))
+          if (channelResp.qr_code) {
+            backendQrCode = channelResp.qr_code
+            console.log('[Step 6] Found qr_code in currentOrder.channel_response (object):', backendQrCode)
+          } else {
+            console.warn('[Step 6] channel_response object does not have qr_code property')
+          }
+        }
+      } else {
+        console.log('[Step 6] No channel_response found in currentOrder')
+      }
+
+      // 如果 currentOrder 中没有，再从 API 响应中读取
+      if (!backendQrCode && response.data.qr_code) {
+        backendQrCode = response.data.qr_code
+        console.log('[Step 6] Found qr_code in response.data.qr_code')
+      }
+      if (!backendQrCode && response.data.alipay_response?.qr_code) {
+        backendQrCode = response.data.alipay_response.qr_code
+        console.log('[Step 6] Found qr_code in response.data.alipay_response')
+      }
+
+      const finalQrCode = savedQrCode || backendQrCode
+
+      console.log('[Step 6] QR code extraction result:', {
+        saved: savedQrCode,
+        backend: backendQrCode,
+        final: finalQrCode,
+        hasChannelResponse: !!response.data.channel_response,
+        channelResponseType: typeof response.data.channel_response
+      })
+
+      // 根据订单状态处理二维码
+      if (response.data.status === 'PENDING') {
+        // PENDING状态：如果有保存的二维码URL，直接使用；否则生成新的
+        if (finalQrCode) {
+          console.log('[Step 6] PENDING status: Using saved QR code')
+          detailQrCodeUrl.value = finalQrCode
+          await nextTick()
+          await renderDetailQRCode()
+          startDetailPolling()
+        } else {
+          console.log('[Step 6] PENDING status: No QR code found, generating new one')
+          await handleGenerateQRForDetail()
+        }
+      } else if (response.data.status === 'PAYING') {
+        // PAYING状态：优先使用已有的二维码URL
+        console.log('[Step 6] PAYING status: finalQrCode =', finalQrCode)
+        if (finalQrCode) {
+          console.log('[Step 6] PAYING status: Using existing QR code from order list')
+          detailQrCodeUrl.value = finalQrCode
+          detailQrError.value = ''
+          await nextTick()
+          await renderDetailQRCode()
+          startDetailPolling()
+        } else {
+          // PAYING状态但没有找到二维码：显示提示信息
+          console.log('[Step 6] PAYING status: No QR code found, showing error message')
+          detailQrError.value = '订单正在支付中，请使用之前扫描的二维码完成支付'
+        }
+      }
+    } catch (err) {
+      console.error('[Step 6] Error:', err)
       queryError.value = err.message || 'Failed to query order details'
     } finally {
       queryLoading.value = false
@@ -1216,6 +1671,11 @@ watch(() => props.stepNumber, async (newStep) => {
     stopPolling()
   }
 
+  // Stop detail polling when leaving step 6
+  if (newStep !== '6') {
+    stopDetailPolling()
+  }
+
   // Render QR code and start polling when entering step 2
   if (newStep === '2' && qrCodeUrl.value) {
     await renderQRCode()
@@ -1249,6 +1709,7 @@ onUnmounted(() => {
   }
   // Stop polling when component unmounts
   stopPolling()
+  stopDetailPolling()
 })
 </script>
 
@@ -1345,6 +1806,19 @@ h2 {
   border: 1px solid #f5c6cb;
   border-radius: 4px;
   margin-bottom: 20px;
+}
+
+.info-message {
+  color: #004085;
+  padding: 12px;
+  background-color: #cce5ff;
+  border: 1px solid #b8daff;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.info-message p {
+  margin: 0;
 }
 
 .button-group {

@@ -51,6 +51,10 @@ export const useOrderStore = defineStore('order', () => {
     if (updates.status) status.value = updates.status
     if (updates.tradeNo) tradeNo.value = updates.tradeNo
     if (updates.paymentNo) paymentNo.value = updates.paymentNo
+    if (updates.qrCodeUrl) {
+      // 保存二维码URL到localStorage
+      localStorage.setItem(`qr_code_${orderId.value}`, updates.qrCodeUrl)
+    }
 
     // Update session storage
     sessionStorage.setItem('order', JSON.stringify({
@@ -64,6 +68,10 @@ export const useOrderStore = defineStore('order', () => {
       paymentNo: paymentNo.value,
       userId: userId.value
     }))
+  }
+
+  function getQrCodeUrl(orderNo) {
+    return localStorage.getItem(`qr_code_${orderNo}`)
   }
 
   function loadFromSession() {
@@ -150,6 +158,7 @@ export const useOrderStore = defineStore('order', () => {
     setRefundInfo,
     clearRefundInfo,
     setCurrentOrder,
-    clearCurrentOrder
+    clearCurrentOrder,
+    getQrCodeUrl  // 导出getQrCodeUrl
   }
 })

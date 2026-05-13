@@ -25,9 +25,9 @@ export const paymentApi = {
   },
 
   // Query refund status
-  queryRefund(outTradeNo) {
+  queryRefund(refundNo) {
     return apiClient.get('/pay/refund/query', {
-      params: { out_trade_no: outTradeNo }
+      params: { refund_no: refundNo }
     })
   },
 
