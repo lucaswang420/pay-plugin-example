@@ -532,12 +532,6 @@
             Back to Orders
           </button>
         </div>
-
-        <!-- 轮询状态提示 -->
-        <div v-if="isDetailPolling" class="polling-indicator">
-          <span class="pulse"></span>
-          Checking payment status automatically...
-        </div>
       </div>
 
       <div v-else class="error-message">
@@ -893,8 +887,8 @@ async function loadOrders() {
 
     orderStore.setOrders(orders)
 
-    // 自动同步所有PAYING状态的订单
-    await syncPayingOrders(orders)
+    // 不再自动同步PAYING状态的订单，避免不必要的后端和API压力
+    // 用户可以在订单详情页面手动刷新状态
   } catch (err) {
     console.error('[loadOrders] Error loading orders:', err)
     listError.value = err.message || 'Failed to load orders'
@@ -1077,7 +1071,6 @@ function handleGoToRefundFromDetail() {
 }
 
 function handleBackToOrdersFromDetail() {
-  stopDetailPolling()
   router.push('/step/3')
 }
 
@@ -1106,7 +1099,6 @@ async function handleGenerateQRForDetail() {
       orderStore.updateOrder({ qrCodeUrl: detailQrCodeUrl.value })
       await nextTick()
       await renderDetailQRCode()
-      startDetailPolling()
     } else {
       detailQrError.value = 'Failed to generate QR code: no QR code in response'
     }
@@ -1130,9 +1122,8 @@ async function handleRefreshOrderDetail() {
     const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
     orderStore.setCurrentOrder(response.data)
 
-    // 如果支付完成，停止轮询
+    // 如果支付完成，清除二维码显示
     if (response.data.status === 'PAID') {
-      stopDetailPolling()
       detailQrCodeUrl.value = ''
     }
   } catch (err) {
@@ -1252,130 +1243,6 @@ onMounted(async () => {
   if (props.stepNumber === '5' && orderStore.refundInfo?.refund_no) {
     await handleQueryRefund()
   }
-
-  // Step 6: 查询订单详情
-  if (props.stepNumber === '6') {
-    console.log('[Step 6] Entered Step 6 logic')
-    console.log('[Step 6] currentOrder:', orderStore.currentOrder)
-
-    if (!orderStore.currentOrder?.order_no) {
-      console.log('[Step 6] No order_no in currentOrder, skipping')
-      return
-    }
-
-    console.log('[Step 6] Processing order:', orderStore.currentOrder.order_no)
-
-    // 在调用API之前，先保存从订单列表传来的 channel_response（包含qr_code）
-    const existingChannelResponse = orderStore.currentOrder?.channel_response
-    console.log('[Step 6] Saved existing channel_response from order list:', existingChannelResponse)
-
-    queryLoading.value = true
-    queryError.value = ''
-    try {
-      const response = await paymentApi.queryOrder(orderStore.currentOrder.order_no)
-      console.log('[Step 6] API response received:', response)
-      console.log('[Step 6] Full response.data:', response.data)
-
-      // 合并订单列表数据和API响应数据，优先保留订单列表中的 channel_response（包含qr_code）
-      const mergedOrder = {
-        ...response.data,
-        channel_response: existingChannelResponse || response.data.channel_response
-      }
-
-      console.log('[Step 6] Merged order data:', mergedOrder)
-      orderStore.setCurrentOrder(mergedOrder)
-
-      // 先从localStorage读取保存的二维码URL
-      const savedQrCode = orderStore.getQrCodeUrl(orderStore.currentOrder.order_no)
-
-      // 从多个可能的字段中读取二维码URL
-      let backendQrCode = null
-
-      // 优先从 orderStore.currentOrder.channel_response 中读取（创建订单时保存的数据）
-      if (orderStore.currentOrder.channel_response) {
-        const channelResp = orderStore.currentOrder.channel_response
-        console.log('[Step 6] Found channel_response in currentOrder, type:', typeof channelResp)
-        console.log('[Step 6] channel_response content:', channelResp)
-        if (typeof channelResp === 'string') {
-          try {
-            const parsed = JSON.parse(channelResp)
-            console.log('[Step 6] Parsed channel_response:', parsed)
-            if (parsed.qr_code) {
-              backendQrCode = parsed.qr_code
-              console.log('[Step 6] Found qr_code in currentOrder.channel_response (string JSON):', backendQrCode)
-            }
-          } catch (e) {
-            console.warn('[Step 6] Failed to parse channel_response:', e)
-          }
-        } else if (typeof channelResp === 'object') {
-          console.log('[Step 6] channel_response is object, keys:', Object.keys(channelResp))
-          if (channelResp.qr_code) {
-            backendQrCode = channelResp.qr_code
-            console.log('[Step 6] Found qr_code in currentOrder.channel_response (object):', backendQrCode)
-          } else {
-            console.warn('[Step 6] channel_response object does not have qr_code property')
-          }
-        }
-      } else {
-        console.log('[Step 6] No channel_response found in currentOrder')
-      }
-
-      // 如果 currentOrder 中没有，再从 API 响应中读取
-      if (!backendQrCode && response.data.qr_code) {
-        backendQrCode = response.data.qr_code
-        console.log('[Step 6] Found qr_code in response.data.qr_code')
-      }
-      if (!backendQrCode && response.data.alipay_response?.qr_code) {
-        backendQrCode = response.data.alipay_response.qr_code
-        console.log('[Step 6] Found qr_code in response.data.alipay_response')
-      }
-
-      const finalQrCode = savedQrCode || backendQrCode
-
-      console.log('[Step 6] QR code extraction result:', {
-        saved: savedQrCode,
-        backend: backendQrCode,
-        final: finalQrCode,
-        hasChannelResponse: !!response.data.channel_response,
-        channelResponseType: typeof response.data.channel_response
-      })
-
-      // 根据订单状态处理二维码
-      if (response.data.status === 'PENDING') {
-        // PENDING状态：如果有保存的二维码URL，直接使用；否则生成新的
-        if (finalQrCode) {
-          console.log('[Step 6] PENDING status: Using saved QR code')
-          detailQrCodeUrl.value = finalQrCode
-          await nextTick()
-          await renderDetailQRCode()
-          startDetailPolling()
-        } else {
-          console.log('[Step 6] PENDING status: No QR code found, generating new one')
-          await handleGenerateQRForDetail()
-        }
-      } else if (response.data.status === 'PAYING') {
-        // PAYING状态：优先使用已有的二维码URL
-        console.log('[Step 6] PAYING status: finalQrCode =', finalQrCode)
-        if (finalQrCode) {
-          console.log('[Step 6] PAYING status: Using existing QR code from order list')
-          detailQrCodeUrl.value = finalQrCode
-          detailQrError.value = ''
-          await nextTick()
-          await renderDetailQRCode()
-          startDetailPolling()
-        } else {
-          // PAYING状态但没有找到二维码：显示提示信息
-          console.log('[Step 6] PAYING status: No QR code found, showing error message')
-          detailQrError.value = '订单正在支付中，请使用之前扫描的二维码完成支付'
-        }
-      }
-    } catch (err) {
-      console.error('[Step 6] Error:', err)
-      queryError.value = err.message || 'Failed to query order details'
-    } finally {
-      queryLoading.value = false
-    }
-  }
 })
 
 // Watch for step changes to handle route navigation within the same component
@@ -1477,7 +1344,6 @@ watch(() => props.stepNumber, async (newStep, oldStep) => {
           detailQrCodeUrl.value = finalQrCode
           await nextTick()
           await renderDetailQRCode()
-          startDetailPolling()
         } else {
           console.log('[Step 6] PENDING status: No QR code found, generating new one')
           await handleGenerateQRForDetail()
@@ -1491,7 +1357,6 @@ watch(() => props.stepNumber, async (newStep, oldStep) => {
           detailQrError.value = ''
           await nextTick()
           await renderDetailQRCode()
-          startDetailPolling()
         } else {
           // PAYING状态但没有找到二维码：显示提示信息
           console.log('[Step 6] PAYING status: No QR code found, showing error message')
@@ -1671,12 +1536,7 @@ watch(() => props.stepNumber, async (newStep) => {
     stopPolling()
   }
 
-  // Stop detail polling when leaving step 6
-  if (newStep !== '6') {
-    stopDetailPolling()
-  }
-
-  // Render QR code and start polling when entering step 2
+  // Render QR code when entering step 2
   if (newStep === '2' && qrCodeUrl.value) {
     await renderQRCode()
     // Start polling for payment status
@@ -1709,7 +1569,6 @@ onUnmounted(() => {
   }
   // Stop polling when component unmounts
   stopPolling()
-  stopDetailPolling()
 })
 </script>
 
