@@ -395,7 +395,7 @@ DROGON_TEST(PayPlugin_CreatePayment_IdempotencySnapshot)
     requestJson["description"] = request.description;
     Json::StreamWriterBuilder hashBuilder;
     const std::string requestStr = Json::writeString(hashBuilder, requestJson);
-    const std::string requestHash = std::to_string(std::hash<std::string>{}(requestStr));
+    const std::string requestHash = drogon::utils::getSha256(requestStr);
 
     // Build snapshot in the format expected by IdempotencyService::checkDatabase
     // {"request_hash": "...", "response": {...}}

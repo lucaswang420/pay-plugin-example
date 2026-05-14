@@ -419,6 +419,7 @@ void CallbackService::handlePaymentCallback(
                              << orderNo;
                     dbClient_->newTransactionAsync([this,
                                                     cbPtr,
+                                                    idempotencyKey,
                                                     orderNo,
                                                     transactionId,
                                                     tradeState,
@@ -430,18 +431,6 @@ void CallbackService::handlePaymentCallback(
                                                      const std::shared_ptr<drogon::orm::Transaction>
                                                        &transPtr
                                                    ) mutable {
-                        LOG_INFO << "[CallbackService] Transaction callback for order: " << orderNo
-                                 << ", transPtr=" << (transPtr ? "valid" : "null");
-                        if (!transPtr)
-                        {
-                            LOG_ERROR << "[CallbackService] Transaction creation failed for order: "
-                                      << orderNo;
-                            Json::Value error;
-                            error["code"] = "FAIL";
-                            error["message"] = "db transaction unavailable";
-                            (*cbPtr)(error, pay::makePayError(1400, "db transaction unavailable"));
-                            return;
-                        }
                         auto respondDbError = [cbPtr](const drogon::orm::DrogonDbException &e) {
                             Json::Value error;
                             error["code"] = "FAIL";
@@ -815,6 +804,8 @@ void CallbackService::handlePaymentCallback(
                     // Duplicate key = already processed by concurrent call
                     LOG_INFO << "[CallbackService] Idempotency insert failed for key: "
                              << idempotencyKey << ", error: " << e.base().what();
+
+                    // Return success to avoid duplicate callback processing
                     Json::Value ok;
                     ok["code"] = "SUCCESS";
                     ok["message"] = "OK";

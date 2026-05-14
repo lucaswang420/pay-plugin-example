@@ -5,6 +5,29 @@
 #include <json/json.h>
 #include <stdexcept>
 
+namespace
+{
+// Helper function to map error codes to HTTP status codes
+drogon::HttpStatusCode mapErrorToHttpStatus(int errorCode)
+{
+    switch (errorCode)
+    {
+        case 1404:  // Not found
+        case 1004:  // Order/refund not found
+            return drogon::k404NotFound;
+        case 1001:  // Invalid input
+        case 1400:  // Bad request
+            return drogon::k400BadRequest;
+        case 1409:  // Idempotency conflict
+            return drogon::k409Conflict;
+        case 1002:  // Payment gateway error
+        case 1003:  // Database error
+        default:
+            return drogon::k500InternalServerError;
+    }
+}
+}
+
 void PayController::createPayment(
   const HttpRequestPtr &req,
   std::function<void(const HttpResponsePtr &)> &&callback
@@ -89,20 +112,12 @@ void PayController::createPayment(
     }
     if (idempotencyKey.empty())
     {
-        // Generate from request hash
-        Json::Value requestJson;
-        requestJson["order_no"] = request.orderNo;
-        requestJson["amount"] = request.amount;
-        requestJson["currency"] = request.currency;
-        requestJson["description"] = request.description;
-        requestJson["notify_url"] = request.notifyUrl;
-        requestJson["user_id"] = static_cast<Json::Int64>(request.userId);
-        requestJson["scene_info"] = request.sceneInfo;
-
-        Json::StreamWriterBuilder builder;
-        idempotencyKey =
-          "payment:" + request.orderNo + ":" +
-          std::to_string(std::hash<std::string>{}(Json::writeString(builder, requestJson)));
+        // Generate standardized idempotency key
+        // Use order_no as the base to ensure same order always gets same key
+        // Include user_id and amount for additional uniqueness
+        idempotencyKey = "payment:" + request.orderNo + ":" +
+                         std::to_string(request.userId) + ":" +
+                         drogon::utils::getSha256(request.amount + request.currency);
     }
 
     // Get service and call
@@ -114,7 +129,7 @@ void PayController::createPayment(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       }
@@ -195,7 +210,7 @@ void PayController::createQRPayment(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       }
@@ -259,7 +274,7 @@ void PayController::queryOrder(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       }
@@ -329,17 +344,10 @@ void PayController::refund(
     }
     if (idempotencyKey.empty())
     {
-        // Generate from request hash
-        Json::Value requestJson;
-        requestJson["order_no"] = request.orderNo;
-        requestJson["payment_no"] = request.paymentNo;
-        requestJson["amount"] = request.amount;
-        requestJson["reason"] = request.reason;
-
-        Json::StreamWriterBuilder builder;
-        idempotencyKey =
-          "refund:" + request.orderNo + ":" +
-          std::to_string(std::hash<std::string>{}(Json::writeString(builder, requestJson)));
+        // Generate standardized idempotency key
+        // Use order_no and amount as the base to ensure same refund request gets same key
+        idempotencyKey = "refund:" + request.orderNo + ":" +
+                         drogon::utils::getSha256(request.amount + request.reason);
     }
 
     // Get service and call
@@ -351,7 +359,7 @@ void PayController::refund(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       }
@@ -392,15 +400,8 @@ void PayController::queryRefund(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              // Map error code 1404 (Refund not found) to HTTP 404
-              if (error.value() == 1404)
-              {
-                  resp->setStatusCode(k404NotFound);
-              }
-              else
-              {
-                  resp->setStatusCode(k500InternalServerError);
-              }
+              // Use comprehensive error code mapping
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       });
@@ -500,7 +501,7 @@ void PayController::queryOrderList(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       }
@@ -537,7 +538,7 @@ void PayController::reconcileSummary(
           auto resp = HttpResponse::newHttpJsonResponse(result);
           if (error)
           {
-              resp->setStatusCode(k500InternalServerError);
+              resp->setStatusCode(mapErrorToHttpStatus(error.value()));
           }
           callback(resp);
       });

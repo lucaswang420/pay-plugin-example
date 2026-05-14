@@ -193,8 +193,8 @@ void RefundService::createRefund(
         return req;
     }());
 
-    // Simple hash (in production, use proper cryptographic hash)
-    std::string requestHash = std::to_string(std::hash<std::string>{}(requestStr));
+    // Use SHA-256 for cryptographic hashing (more secure than std::hash)
+    std::string requestHash = drogon::utils::getSha256(requestStr);
 
     // Wrap callback in shared_ptr to prevent it from being destroyed during async operations
     auto sharedCb = std::make_shared<RefundCallback>(std::move(callback));
@@ -283,18 +283,47 @@ void RefundService::proceedRefund(
     // Wrap callback in shared_ptr to prevent it from being destroyed during async operations
     auto sharedCb = std::make_shared<RefundCallback>(std::move(callback));
 
-    // Input validation
+    // Enhanced input validation
+    // Validate reason field (only check max length, allow empty)
     if (request.reason.size() > 80)
     {
         if (*sharedCb)
         {
             Json::Value error;
             error["code"] = 1400;
-            error["message"] = "reason too long";
+            error["message"] = "reason too long (max 80 characters)";
             (*sharedCb)(error, std::error_code(1400, std::system_category()));
         }
         return;
     }
+
+    // Validate order_no format (basic check)
+    if (request.orderNo.empty() || request.orderNo.length() > 64)
+    {
+        if (*sharedCb)
+        {
+            Json::Value error;
+            error["code"] = 1400;
+            error["message"] = "invalid order_no format";
+            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+        }
+        return;
+    }
+
+    // Validate amount format
+    if (request.amount.empty())
+    {
+        if (*sharedCb)
+        {
+            Json::Value error;
+            error["code"] = 1400;
+            error["message"] = "amount cannot be empty";
+            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+        }
+        return;
+    }
+
+    // Validate funds_account
     if (
       !request.fundsAccount.empty() && request.fundsAccount != "AVAILABLE" &&
       request.fundsAccount != "UNSETTLED"
@@ -304,24 +333,37 @@ void RefundService::proceedRefund(
         {
             Json::Value error;
             error["code"] = 1400;
-            error["message"] = "invalid funds_account";
+            error["message"] = "invalid funds_account (must be AVAILABLE or UNSETTLED)";
             (*sharedCb)(error, std::error_code(1400, std::system_category()));
         }
         return;
     }
-    if (
-      !request.notifyUrl.empty() && request.notifyUrl.find("http://") != 0 &&
-      request.notifyUrl.find("https://") != 0
-    )
+
+    // Enhanced URL validation
+    if (!request.notifyUrl.empty())
     {
-        if (*sharedCb)
+        if (request.notifyUrl.find("http://") != 0 && request.notifyUrl.find("https://") != 0)
         {
-            Json::Value error;
-            error["code"] = 1400;
-            error["message"] = "invalid notify_url";
-            (*sharedCb)(error, std::error_code(1400, std::system_category()));
+            if (*sharedCb)
+            {
+                Json::Value error;
+                error["code"] = 1400;
+                error["message"] = "invalid notify_url (must start with http:// or https://)";
+                (*sharedCb)(error, std::error_code(1400, std::system_category()));
+            }
+            return;
         }
-        return;
+        if (request.notifyUrl.length() > 512)
+        {
+            if (*sharedCb)
+            {
+                Json::Value error;
+                error["code"] = 1400;
+                error["message"] = "notify_url too long (max 512 characters)";
+                (*sharedCb)(error, std::error_code(1400, std::system_category()));
+            }
+            return;
+        }
     }
 
     const std::string refundNo =

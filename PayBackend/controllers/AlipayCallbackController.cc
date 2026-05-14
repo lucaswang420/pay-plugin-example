@@ -30,17 +30,9 @@ void AlipayCallbackController::notify(
             std::string key = pair.substr(0, pos);
             std::string value = pair.substr(pos + 1);
 
-            // URL decode
-            char *decoded = new char[value.length() + 1];
-            std::strncpy(decoded, value.c_str(), value.length() + 1);
-            // 简单处理：将+替换为空格，%XX需要进一步解码
-            for (size_t i = 0; i < value.length(); ++i)
-            {
-                if (decoded[i] == '+')
-                    decoded[i] = ' ';
-            }
+            // URL decode using Drogon's urlDecode function
+            std::string decoded = drogon::utils::urlDecode(value);
             params[key] = decoded;
-            delete[] decoded;
         }
     }
 
