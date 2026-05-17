@@ -55,6 +55,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon OpenSSL::Crypto OpenSSL::SSL)
 
+add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../config.json"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/config.json"
+)
+
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
         /FI"${CMAKE_CURRENT_SOURCE_DIR}/../models/orm_compat.h"
