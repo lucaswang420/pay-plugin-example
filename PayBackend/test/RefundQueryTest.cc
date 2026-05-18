@@ -605,7 +605,7 @@ DROGON_TEST(PayPlugin_Refund_IdempotencySnapshot)
     reqJson["order_no"] = request.orderNo;
     reqJson["amount"] = request.amount;
     reqJson["reason"] = request.reason;
-    std::string requestStr = Json::writeString(Json::StreamWriterBuilder(), reqJson);
+    std::string requestStr = pay::utils::toJsonString(reqJson);
     std::string requestHash = drogon::utils::getSha256(requestStr);
 
     // Build snapshot in the format the service expects:

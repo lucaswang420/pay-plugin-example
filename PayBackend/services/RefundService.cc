@@ -185,13 +185,11 @@ void RefundService::createRefund(
 )
 {
     // Calculate request hash for idempotency
-    std::string requestStr = Json::writeString(Json::StreamWriterBuilder(), [&request]() {
-        Json::Value req;
-        req["order_no"] = request.orderNo;
-        req["amount"] = request.amount;
-        req["reason"] = request.reason;
-        return req;
-    }());
+    Json::Value reqJson;
+    reqJson["order_no"] = request.orderNo;
+    reqJson["amount"] = request.amount;
+    reqJson["reason"] = request.reason;
+    const std::string requestStr = pay::utils::toJsonString(reqJson);
 
     // Use SHA-256 for cryptographic hashing (more secure than std::hash)
     std::string requestHash = drogon::utils::getSha256(requestStr);

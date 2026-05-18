@@ -152,7 +152,7 @@ void IdempotencyService::checkDatabase(
                       cached["response"] = response;
 
                       std::string redisKey = "idempotency:" + idempotencyKey;
-                      std::string cacheStr = Json::writeString(Json::StreamWriterBuilder(), cached);
+                      std::string cacheStr = pay::utils::toJsonString(cached);
 
                       redisClient_->execCommandAsync(
                         [sharedCb, response](const nosql::RedisResult &) {
@@ -234,7 +234,7 @@ void IdempotencyService::updateResult(
     Json::Value cached;
     cached["request_hash"] = requestHash;
     cached["response"] = response;
-    std::string cacheStr = Json::writeString(Json::StreamWriterBuilder(), cached);
+    std::string cacheStr = pay::utils::toJsonString(cached);
 
     LOG_INFO << "[IdempotencyService] Saving to DB: key=" << idempotencyKey
              << ", hash=" << requestHash.substr(0, 8)
