@@ -95,11 +95,12 @@ DROGON_TEST(PayIdempotency_DbUniqueKey)
 
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-      "idempotency_key VARCHAR(64) PRIMARY KEY,"
-      "request_hash TEXT NOT NULL,"
+      "idempotency_key VARCHAR(128) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
       "response_snapshot TEXT,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "expire_at TIMESTAMPTZ NOT NULL)"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     const std::string key = "test_" + drogon::utils::getUuid();
@@ -229,11 +230,12 @@ DROGON_TEST(PayIdempotency_OrmRoundTrip)
 
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_idempotency ("
-      "idempotency_key VARCHAR(64) PRIMARY KEY,"
-      "request_hash TEXT NOT NULL,"
+      "idempotency_key VARCHAR(128) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
       "response_snapshot TEXT,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "expire_at TIMESTAMPTZ NOT NULL)"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayIdempotency = drogon_model::pay_test::PayIdempotency;
@@ -284,22 +286,22 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
       "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
       "title VARCHAR(512),"
       "expire_at TIMESTAMP,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_payment ("
       "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) UNIQUE NOT NULL,"
       "order_no VARCHAR(64) NOT NULL REFERENCES pay_order(order_no),"
-      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-      "status VARCHAR(24) NOT NULL,"
-      "amount DECIMAL(18,2) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
       "request_payload TEXT,"
       "response_payload TEXT,"
       "channel_trade_no VARCHAR(64),"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     client->execSqlSync(
@@ -311,7 +313,7 @@ DROGON_TEST(PayCallback_OrmRoundTrip)
       "serial_no VARCHAR(64),"
       "verified BOOLEAN NOT NULL DEFAULT FALSE,"
       "processed BOOLEAN NOT NULL DEFAULT FALSE,"
-      "received_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayOrder = drogon_model::pay_test::PayOrder;
@@ -389,15 +391,15 @@ DROGON_TEST(PayPayment_OrmRoundTrip)
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_payment ("
       "id BIGSERIAL PRIMARY KEY,"
+      "payment_no VARCHAR(64) UNIQUE NOT NULL,"
       "order_no VARCHAR(64) NOT NULL,"
-      "payment_no VARCHAR(64) NOT NULL UNIQUE,"
-      "channel_trade_no VARCHAR(64),"
-      "status VARCHAR(24) NOT NULL,"
-      "amount DECIMAL(18,2) NOT NULL,"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
       "request_payload TEXT,"
       "response_payload TEXT,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "channel_trade_no VARCHAR(64),"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayPayment = drogon_model::pay_test::PayPayment;
@@ -462,14 +464,16 @@ DROGON_TEST(PayRefund_OrmRoundTrip)
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_refund ("
       "id BIGSERIAL PRIMARY KEY,"
-      "refund_no VARCHAR(64) NOT NULL UNIQUE,"
-      "order_no VARCHAR(64) NOT NULL,"
-      "payment_no VARCHAR(64) NOT NULL,"
+      "refund_no VARCHAR(64) UNIQUE NOT NULL,"
+      "order_no VARCHAR(64) NOT NULL REFERENCES pay_order(order_no),"
+      "payment_no VARCHAR(64) NOT NULL REFERENCES pay_payment(payment_no),"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "amount VARCHAR(32) NOT NULL,"
       "channel_refund_no VARCHAR(64),"
-      "status VARCHAR(24) NOT NULL,"
-      "amount DECIMAL(18,2) NOT NULL,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "request_payload TEXT,"
+      "response_payload TEXT,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayRefund = drogon_model::pay_test::PayRefund;
@@ -546,16 +550,16 @@ DROGON_TEST(PayOrder_OrmRoundTrip)
     client->execSqlSync(
       "CREATE TABLE IF NOT EXISTS pay_order ("
       "id BIGSERIAL PRIMARY KEY,"
-      "order_no VARCHAR(64) NOT NULL UNIQUE,"
+      "order_no VARCHAR(64) UNIQUE NOT NULL,"
       "user_id BIGINT NOT NULL,"
-      "amount DECIMAL(18,2) NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
       "currency VARCHAR(8) NOT NULL DEFAULT 'CNY',"
-      "status VARCHAR(24) NOT NULL,"
-      "channel VARCHAR(16) NOT NULL,"
-      "title VARCHAR(128) NOT NULL,"
-      "expire_at TIMESTAMPTZ,"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
-      "updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "status VARCHAR(32) NOT NULL DEFAULT 'pending',"
+      "channel VARCHAR(32) NOT NULL DEFAULT 'alipay',"
+      "title VARCHAR(512),"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayOrder = drogon_model::pay_test::PayOrder;
@@ -612,10 +616,10 @@ DROGON_TEST(PayLedger_OrmRoundTrip)
       "user_id BIGINT NOT NULL,"
       "order_no VARCHAR(64) NOT NULL,"
       "payment_no VARCHAR(64),"
-      "entry_type VARCHAR(24) NOT NULL,"
-      "amount DECIMAL(18,2) NOT NULL,"
-      "balance DECIMAL(18,2),"
-      "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())"
+      "entry_type VARCHAR(32) NOT NULL,"
+      "amount VARCHAR(32) NOT NULL,"
+      "balance VARCHAR(32),"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
     );
 
     using PayLedger = drogon_model::pay_test::PayLedger;

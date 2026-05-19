@@ -110,7 +110,8 @@ jobs:
         env:
           PGPASSWORD: 123456
         run: |
-          psql -h localhost -U test -d pay_test -f sql/001_init.sql || echo "Database init script not found or already initialized"
+          psql -h localhost -U test -d pay_test -f sql/001_init_pay_tables.sql
+          psql -h localhost -U test -d pay_test -f sql/002_add_indexes.sql
 
       - name: Test
         working-directory: ${{github.workspace}}/PayBackend/build
