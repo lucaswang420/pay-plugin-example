@@ -1,0 +1,27 @@
+{
+  "skill_name": "production-readiness-docs",
+  "description": "Test cases for production readiness documentation skill",
+  "evals": [
+    {
+      "id": 1,
+      "name": "web-app-production-docs",
+      "prompt": "My Node.js web application is ready for production but I have zero documentation. I need deployment guide, operations manual, monitoring setup, security checklist, basically everything needed to deploy and run this in production. Can you create the complete documentation package?",
+      "expected_output": "Should create all 6 core documents (deployment_guide.md, operations_manual.md, monitoring_setup.md, security_checklist.md, release_notes.md, CI/CD configs), operational scripts, and docs/README.md index. All should be customized for Node.js web app with specific commands and examples.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "api-service-documentation",
+      "prompt": "I have a REST API service built with Python FastAPI. It's ready to deploy but I need comprehensive production documentation. Include Prometheus monitoring, Grafana dashboards, Docker deployment, operational runbooks, and security hardening checklist. Make sure everything is specific to FastAPI and PostgreSQL.",
+      "expected_output": "Complete documentation package customized for FastAPI + PostgreSQL stack. Should include Docker deployment, database backup scripts, Prometheus config for Python apps, and security checklist specific to web APIs.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "microservice-cicd-setup",
+      "prompt": "This microservice needs to go to production. Create all the documentation including CI/CD pipelines for GitHub Actions, Docker container deployment, monitoring with Prometheus, operational scripts for Kubernetes, and a security checklist for containerized services.",
+      "expected_output": "Should include CI/CD workflows for container builds, Kubernetes deployment docs, Prometheus monitoring for K8s, operational scripts for kubectl/docker, and security checklist for containers (image scanning, secrets management).",
+      "files": []
+    }
+  ]
+}
