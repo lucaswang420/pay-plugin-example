@@ -149,3 +149,12 @@ std::string ConfigLoader::parseEnvVarName(const std::string &placeholder, const 
     // This is handled in replacePlaceholders by using key context
     return "";
 }
+
+std::string ConfigLoader::maskSensitive(const std::string &value)
+{
+    if (value.size() < 8)
+    {
+        return "***";
+    }
+    return value.substr(0, 4) + "***" + value.substr(value.size() - 4);
+}

@@ -9,6 +9,7 @@ find_package(Drogon CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 set(TEST_SRC
+    ConfigLoaderTest.cc
     CreatePaymentIntegrationTest.cc  # [PASS] Updated to new API
     ControllerMetricsTest.cc
     IdempotencyIntegrationTest.cc
