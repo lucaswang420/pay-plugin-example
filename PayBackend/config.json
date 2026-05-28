@@ -237,7 +237,7 @@
                 "__env_var:PAY_API_KEY__"
             ],
             "api_key_scopes": {
-                "__env_var:PAY_API_KEY__": [
+                "test_key_123456": [
                     "read",
                     "write",
                     "admin",
