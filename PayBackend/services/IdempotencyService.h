@@ -34,8 +34,25 @@
 class IdempotencyService
 {
   public:
+    enum class CheckStatus
+    {
+        Started,
+        Replay,
+        InProgress,
+        Conflict,
+        Error
+    };
+
+    struct CheckResult
+    {
+        CheckStatus status{CheckStatus::Error};
+        Json::Value cachedResult;
+        std::string message;
+    };
+
     using CheckCallback = std::function<void(bool canProceed, const Json::Value &cachedResult)>;
-    using UpdateCallback = std::function<void()>;
+    using StatusCallback = std::function<void(const CheckResult &result)>;
+    using UpdateCallback = std::function<void(bool success)>;
 
     IdempotencyService(
       std::shared_ptr<drogon::orm::DbClient> dbClient,
@@ -51,12 +68,19 @@ class IdempotencyService
       CheckCallback &&callback
     );
 
+    void checkAndSetStatus(
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      const Json::Value &request,
+      StatusCallback &&callback
+    );
+
     // Update result after successful operation
     void updateResult(
       const std::string &idempotencyKey,
       const std::string &requestHash,
       const Json::Value &response,
-      UpdateCallback &&callback = []() {}
+      UpdateCallback &&callback = [](bool) {}
     );
 
   private:
@@ -67,7 +91,6 @@ class IdempotencyService
     void checkDatabase(
       const std::string &idempotencyKey,
       const std::string &requestHash,
-      const Json::Value &request,
-      CheckCallback &&callback
+      StatusCallback &&callback
     );
 };

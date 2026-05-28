@@ -208,8 +208,15 @@ void RefundService::createRefund(
         {
             LOG_INFO << "[RefundService] Saving idempotency snapshot for key=" << idempotencyKey;
             // Save successful response to idempotency cache
-            idempotencyService_->updateResult(idempotencyKey, requestHash, response, []() {
-                LOG_INFO << "[RefundService] Idempotency snapshot saved successfully";
+            idempotencyService_->updateResult(idempotencyKey, requestHash, response, [](bool success) {
+                if (success)
+                {
+                    LOG_INFO << "[RefundService] Idempotency snapshot saved successfully";
+                }
+                else
+                {
+                    LOG_WARN << "[RefundService] Failed to save idempotency snapshot";
+                }
             });
         }
         // Call user callback

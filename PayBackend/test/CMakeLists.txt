@@ -12,6 +12,7 @@ set(TEST_SRC
     CreatePaymentIntegrationTest.cc  # [PASS] Updated to new API
     ControllerMetricsTest.cc
     IdempotencyIntegrationTest.cc
+    OnceCallbackTest.cc
     test_main.cc
     PayAuthFilterTest.cc
     PayAuthMetricsTest.cc

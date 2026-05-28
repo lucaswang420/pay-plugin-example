@@ -1473,8 +1473,7 @@ bool PayLedger::validJsonOfField(size_t index,
                 err="Type error in the "+fieldName+" field";
                 return false;
             }
-            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
-                .from_bytes(pJson.asCString()).size() > 64)
+            if(pJson.isString() && drogon::utils::utf8Length(pJson.asCString()) > 64)
             {
                 err="String length exceeds limit for the " +
                     fieldName +
@@ -1492,8 +1491,7 @@ bool PayLedger::validJsonOfField(size_t index,
                 err="Type error in the "+fieldName+" field";
                 return false;
             }
-            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
-                .from_bytes(pJson.asCString()).size() > 64)
+            if(pJson.isString() && drogon::utils::utf8Length(pJson.asCString()) > 64)
             {
                 err="String length exceeds limit for the " +
                     fieldName +
@@ -1512,8 +1510,7 @@ bool PayLedger::validJsonOfField(size_t index,
                 err="Type error in the "+fieldName+" field";
                 return false;
             }
-            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
-                .from_bytes(pJson.asCString()).size() > 32)
+            if(pJson.isString() && drogon::utils::utf8Length(pJson.asCString()) > 32)
             {
                 err="String length exceeds limit for the " +
                     fieldName +
@@ -1532,8 +1529,7 @@ bool PayLedger::validJsonOfField(size_t index,
                 err="Type error in the "+fieldName+" field";
                 return false;
             }
-            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
-                .from_bytes(pJson.asCString()).size() > 32)
+            if(pJson.isString() && drogon::utils::utf8Length(pJson.asCString()) > 32)
             {
                 err="String length exceeds limit for the " +
                     fieldName +
@@ -1551,8 +1547,7 @@ bool PayLedger::validJsonOfField(size_t index,
                 err="Type error in the "+fieldName+" field";
                 return false;
             }
-            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
-                .from_bytes(pJson.asCString()).size() > 32)
+            if(pJson.isString() && drogon::utils::utf8Length(pJson.asCString()) > 32)
             {
                 err="String length exceeds limit for the " +
                     fieldName +
