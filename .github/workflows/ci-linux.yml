@@ -43,12 +43,12 @@ jobs:
 
       - name: CoroMapper usage detection
         run: |
-          echo "Checking for CoroMapper usage..."
-          if grep -rn 'CoroMapper' PayBackend/ --include='*.h' --include='*.cc'; then
-            echo "ERROR: CoroMapper usage detected"
+          echo "Checking for CoroMapper usage (excluding auto-generated ORM models)..."
+          if grep -rn 'CoroMapper' PayBackend/ --include='*.h' --include='*.cc' --exclude-dir=models; then
+            echo "ERROR: CoroMapper usage detected outside models/"
             exit 1
           fi
-          echo "No CoroMapper usage found."
+          echo "No CoroMapper usage found outside models/."
 
       - name: Old Plugin API detection
         run: |
