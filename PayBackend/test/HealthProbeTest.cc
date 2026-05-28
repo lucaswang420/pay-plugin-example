@@ -16,7 +16,7 @@ DROGON_TEST(HealthProbe_LivenessEndpoint)
     client->sendRequest(
       req,
       [TEST_CTX](ReqResult result, const HttpResponsePtr &resp) {
-          REQUIRE(result == ReqResult::ok);
+          REQUIRE(result == ReqResult::Ok);
           REQUIRE(resp != nullptr);
           CHECK(resp->getStatusCode() == k200OK);
 
@@ -37,7 +37,7 @@ DROGON_TEST(HealthProbe_ReadinessEndpoint)
     client->sendRequest(
       req,
       [TEST_CTX](ReqResult result, const HttpResponsePtr &resp) {
-          REQUIRE(result == ReqResult::ok);
+          REQUIRE(result == ReqResult::Ok);
           REQUIRE(resp != nullptr);
 
           auto json = resp->getJsonObject();
@@ -69,7 +69,7 @@ DROGON_TEST(HealthProbe_CompatEndpoint_DeprecationHeader)
     client->sendRequest(
       req,
       [TEST_CTX](ReqResult result, const HttpResponsePtr &resp) {
-          REQUIRE(result == ReqResult::ok);
+          REQUIRE(result == ReqResult::Ok);
           REQUIRE(resp != nullptr);
 
           auto deprecation = resp->getHeader("Deprecation");

@@ -152,7 +152,7 @@ std::string ConfigLoader::parseEnvVarName(const std::string &placeholder, const 
 
 std::string ConfigLoader::maskSensitive(const std::string &value)
 {
-    if (value.size() < 8)
+    if (value.size() <= 8)
     {
         return "***";
     }
