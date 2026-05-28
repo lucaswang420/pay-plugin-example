@@ -1,4 +1,8 @@
 #include <drogon/drogon.h>
+#include "utils/ConfigLoader.h"
+#include "utils/StartupValidator.h"
+#include <fstream>
+#include <json/json.h>
 #include <string>
 
 using namespace drogon;
@@ -33,18 +37,24 @@ void setupCors()
                   auto resp = drogon::HttpResponse::newHttpResponse();
                   resp->addHeader("Access-Control-Allow-Origin", origin);
 
-                  const auto &requestMethod = req->getHeader("Access-Control-Request-Method");
+                  const auto &requestMethod =
+                    req->getHeader("Access-Control-Request-Method");
                   if (!requestMethod.empty())
                   {
-                      resp->addHeader("Access-Control-Allow-Methods", requestMethod);
+                      resp->addHeader(
+                        "Access-Control-Allow-Methods", requestMethod
+                      );
                   }
 
                   resp->addHeader("Access-Control-Allow-Credentials", "true");
 
-                  const auto &requestHeaders = req->getHeader("Access-Control-Request-Headers");
+                  const auto &requestHeaders =
+                    req->getHeader("Access-Control-Request-Headers");
                   if (!requestHeaders.empty())
                   {
-                      resp->addHeader("Access-Control-Allow-Headers", requestHeaders);
+                      resp->addHeader(
+                        "Access-Control-Allow-Headers", requestHeaders
+                      );
                   }
                   return resp;
               }
@@ -54,13 +64,19 @@ void setupCors()
     );
 
     drogon::app().registerPostHandlingAdvice(
-      [isAllowed](const drogon::HttpRequestPtr &req, const drogon::HttpResponsePtr &resp) {
+      [isAllowed](const drogon::HttpRequestPtr &req,
+                  const drogon::HttpResponsePtr &resp) {
           const auto &origin = req->getHeader("Origin");
           if (isAllowed(origin))
           {
               resp->addHeader("Access-Control-Allow-Origin", origin);
-              resp->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-              resp->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+              resp->addHeader(
+                "Access-Control-Allow-Methods", "GET, POST, OPTIONS"
+              );
+              resp->addHeader(
+                "Access-Control-Allow-Headers",
+                "Content-Type, Authorization"
+              );
               resp->addHeader("Access-Control-Allow-Credentials", "true");
           }
       }
@@ -69,7 +85,33 @@ void setupCors()
 
 int main()
 {
-    drogon::app().loadConfigFile("./config.json");
+    // 1. Load .env file into process environment
+    ConfigLoader::loadEnvFile(".env");
+
+    // 2. Validate required environment variables
+    StartupValidator::validate(
+      {"PAY_DB_PASSWORD", "PAY_REDIS_PASSWORD", "PAY_API_KEY"}
+    );
+
+    // 3. Read config.json and replace __env_var:XXX__ placeholders
+    std::ifstream configFile("./config.json");
+    if (!configFile.is_open())
+    {
+        LOG_ERROR << "Failed to open config.json";
+        return 1;
+    }
+    Json::Value config;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    if (!Json::parseFromStream(builder, configFile, &config, &errors))
+    {
+        LOG_ERROR << "Failed to parse config.json: " << errors;
+        return 1;
+    }
+    Json::Value processedConfig = ConfigLoader::loadConfig(config);
+
+    // 4. Load processed config into Drogon
+    drogon::app().loadConfigJson(std::move(processedConfig));
     setupCors();
     drogon::app().run();
     return 0;

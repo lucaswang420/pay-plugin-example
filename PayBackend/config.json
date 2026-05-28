@@ -14,7 +14,7 @@
             "port": 5432,
             "dbname": "pay_test",
             "user": "test",
-            "passwd": "123456",
+            "passwd": "__env_var:PAY_DB_PASSWORD__",
             "is_fast": false,
             "client_encoding": "UTF8",
             "number_of_connections": 4,
@@ -31,7 +31,7 @@
             "host": "127.0.0.1",
             "port": 6379,
             "username": "",
-            "passwd": "123456",
+            "passwd": "__env_var:PAY_REDIS_PASSWORD__",
             "db": 0,
             "is_fast": false,
             "number_of_connections": 4,
@@ -234,10 +234,10 @@
         },
         "pay": {
             "api_keys": [
-                "test_key_123456"
+                "__env_var:PAY_API_KEY__"
             ],
             "api_key_scopes": {
-                "test_key_123456": [
+                "__env_var:PAY_API_KEY__": [
                     "read",
                     "write",
                     "admin",
