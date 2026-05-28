@@ -23,6 +23,7 @@ set(TEST_SRC
     WechatCallbackIntegrationTest.cc  # [PASS] Updated to new API (Phase 3)
     RefundQueryTest.cc  # [PASS] Updated to new API (Phase 3)
     ReconcileSummaryTest.cc  # [PASS] Updated to new API (Phase 3)
+    StartupValidatorTest.cc
 )
 
 add_executable(
@@ -48,6 +49,7 @@ add_executable(
     ../services/ReconciliationService.cc
     ../utils/PayUtils.cc
     ../utils/ConfigLoader.cc
+    ../utils/StartupValidator.cc
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
