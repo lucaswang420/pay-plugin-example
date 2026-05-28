@@ -90,7 +90,7 @@ jobs:
       - name: Health check
         run: |
           # Check if service is healthy
-          curl -f https://staging-api.example.com/health || exit 1
+          curl -f https://staging-api.example.com/healthz || exit 1
 
   deploy-production:
     runs-on: ubuntu-22.04

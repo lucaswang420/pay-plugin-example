@@ -12,6 +12,7 @@ set(TEST_SRC
     ConfigLoaderTest.cc
     CreatePaymentIntegrationTest.cc  # [PASS] Updated to new API
     ControllerMetricsTest.cc
+    HealthProbeTest.cc
     IdempotencyIntegrationTest.cc
     OnceCallbackTest.cc
     test_main.cc
@@ -37,6 +38,7 @@ add_executable(
     ../models/PayOrder.cc
     ../models/PayPayment.cc
     ../models/PayRefund.cc
+    ../controllers/HealthCheckController.cc
     ../controllers/MetricsController.cc
     ../controllers/PayMetricsController.cc
     ../plugins/PayPlugin.cc
