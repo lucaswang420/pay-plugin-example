@@ -67,6 +67,9 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/../config.json"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/config.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../.env"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/.env"
 )
 
 if(MSVC)

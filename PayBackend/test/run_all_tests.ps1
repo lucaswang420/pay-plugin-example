@@ -15,18 +15,20 @@ if (-not (Test-Path $ExePath)) {
 $exeDir = Split-Path $ExePath -Parent
 Set-Location $exeDir
 
-$rawTests = & $ExePath -l
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to list tests."
-    exit $LASTEXITCODE
-}
-
+$rawOutput = & $ExePath -l 2>$null
+# Filter out Drogon log lines (timestamps) and keep only test names
 $tests = @()
-foreach ($line in $rawTests) {
+foreach ($line in $rawOutput) {
     $trimmed = $line.Trim()
     if ($trimmed.Length -eq 0) { continue }
     if ($trimmed -eq "Available Tests:") { continue }
+    # Skip Drogon log lines (they start with timestamp like "20260528 ...")
+    if ($trimmed -match '^\d{8}\s+\d{2}:\d{2}:') { continue }
     $tests += $trimmed
+}
+if ($tests.Count -eq 0) {
+    Write-Host "Failed to list tests."
+    exit 1
 }
 
 foreach ($t in $tests) {

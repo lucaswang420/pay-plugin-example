@@ -233,9 +233,7 @@
             ]
         },
         "pay": {
-            "api_keys": [
-                "__env_var:PAY_API_KEY__"
-            ],
+            "api_keys": [],
             "api_key_scopes": {
                 "test_key_123456": [
                     "read",

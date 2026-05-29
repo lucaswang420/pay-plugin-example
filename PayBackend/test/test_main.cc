@@ -1,10 +1,29 @@
 #define DROGON_TEST_MAIN
 #include <drogon/drogon_test.h>
 #include <drogon/drogon.h>
+#include "../utils/ConfigLoader.h"
+#include <fstream>
+#include <json/json.h>
 
 int main(int argc, char **argv)
 {
     using namespace drogon;
+
+    // Load .env and process config.json placeholders (same as main.cc)
+    ConfigLoader::loadEnvFile(".env");
+
+    std::ifstream configFile("./config.json");
+    if (configFile.is_open())
+    {
+        Json::Value config;
+        Json::CharReaderBuilder builder;
+        std::string errors;
+        if (Json::parseFromStream(builder, configFile, &config, &errors))
+        {
+            Json::Value processedConfig = ConfigLoader::loadConfig(config);
+            app().loadConfigJson(std::move(processedConfig));
+        }
+    }
 
     std::promise<void> p1;
     std::future<void> f1 = p1.get_future();

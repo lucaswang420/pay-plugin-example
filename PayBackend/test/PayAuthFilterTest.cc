@@ -132,14 +132,14 @@ DROGON_TEST(PayAuthFilter_InvalidKey)
 
 DROGON_TEST(PayAuthFilter_ValidKey)
 {
-    setEnvVar("PAY_API_KEY", "secret");
-    setEnvVar("PAY_API_KEYS", "");
+    // test_key_123456 has order_query scope in api_key_scopes config
+    std::string configuredKey = "test_key_123456";
 
     PayAuthFilter filter;
     auto req = drogon::HttpRequest::newHttpRequest();
     req->setMethod(drogon::Get);
     req->setPath("/pay/query");
-    req->addHeader("X-Api-Key", "secret");
+    req->addHeader("X-Api-Key", configuredKey);
 
     bool fcbCalled = false;
     bool fccbCalled = false;
