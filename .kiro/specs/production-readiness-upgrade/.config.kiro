@@ -1,0 +1,8 @@
+{
+  "specType": "feature",
+  "workflowType": "requirements-first",
+  "featureName": "production-readiness-upgrade",
+  "createdAt": "2026-05-27",
+  "designArtifacts": null,
+  "notes": "Master roadmap spec for production readiness. Implementation will be split into 7 child specs."
+}
