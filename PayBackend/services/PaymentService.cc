@@ -273,7 +273,19 @@ void PaymentService::createPayment(
               Json::Value error;
               error["code"] = 1001;
               error["message"] = "Invalid amount format";
-              sharedCb->call(error, pay::makePayError(1001, "Invalid amount format"));
+              auto ec = pay::makePayError(1001, "Invalid amount format");
+              if (!idempotencyKey.empty())
+              {
+                  // Validation failed after the key was reserved: release it so
+                  // the client can retry with a corrected amount.
+                  idempotencyService->clearReservation(
+                    idempotencyKey,
+                    requestHash,
+                    [sharedCb, error, ec](bool) { sharedCb->call(error, ec); }
+                  );
+                  return;
+              }
+              sharedCb->call(error, ec);
               return;
           }
 
@@ -286,6 +298,18 @@ void PaymentService::createPayment(
                     idempotencyKey,
                     requestHash,
                     result,
+                    [sharedCb, result, error](bool) { sharedCb->call(result, error); }
+                  );
+                  return;
+              }
+              if (!idempotencyKey.empty() && error)
+              {
+                  // Operation failed after the key was reserved: release the
+                  // in-flight reservation so the next retry is not reported as
+                  // InProgress (key poisoning).
+                  idempotencyService->clearReservation(
+                    idempotencyKey,
+                    requestHash,
                     [sharedCb, result, error](bool) { sharedCb->call(result, error); }
                   );
                   return;

@@ -83,6 +83,16 @@ class IdempotencyService
       UpdateCallback &&callback = [](bool) {}
     );
 
+    // Release an in-flight reservation when the operation failed before a
+    // response snapshot was stored, so the key is not reported as InProgress on
+    // the next retry. Only deletes rows whose response_snapshot is still NULL,
+    // leaving completed entries intact. No-op for an empty key.
+    void clearReservation(
+      const std::string &idempotencyKey,
+      const std::string &requestHash,
+      UpdateCallback &&callback = [](bool) {}
+    );
+
   private:
     std::shared_ptr<drogon::orm::DbClient> dbClient_;
     drogon::nosql::RedisClientPtr redisClient_;
