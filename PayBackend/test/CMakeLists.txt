@@ -67,10 +67,19 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/../config.json"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/config.json"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/../.env"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/.env"
 )
+# .env is not tracked in git; only copy it when present (local dev). CI injects
+# config via environment variables and a clean checkout has no .env, which would
+# otherwise make `cmake -E copy_if_different` fail the build.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.env")
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/../.env"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/.env"
+    )
+endif()
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
@@ -82,8 +91,10 @@ if(MSVC)
         _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
         _CRT_SECURE_NO_WARNINGS
     )
-elseif(APPLE)
-    # macOS needs codecvt compatibility for C++17
+else()
+    # Non-MSVC (Linux/macOS): regenerated Drogon ORM models use
+    # std::wstring_convert/std::codecvt_utf8_utf16 without including the headers;
+    # force-include orm_compat.h to provide them.
     target_compile_options(${PROJECT_NAME} PRIVATE
         -include "${CMAKE_CURRENT_SOURCE_DIR}/../models/orm_compat.h"
     )
