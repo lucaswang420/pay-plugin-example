@@ -31,6 +31,9 @@ class HealthCheckController : public drogon::HttpController<HealthCheckControlle
 
   private:
     std::atomic<int> consecutiveFailures_{0};
-    std::atomic<bool> lastReadyState_{true};
+    // Start "not ready" so traffic is not routed before the first probe has
+    // actually verified dependencies. Hysteresis still prevents flapping once a
+    // successful probe has flipped this to true.
+    std::atomic<bool> lastReadyState_{false};
     static constexpr int FAILURE_THRESHOLD = 3;
 };
