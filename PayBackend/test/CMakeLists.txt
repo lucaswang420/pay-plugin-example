@@ -9,9 +9,12 @@ find_package(Drogon CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 set(TEST_SRC
+    ConfigLoaderTest.cc
     CreatePaymentIntegrationTest.cc  # [PASS] Updated to new API
     ControllerMetricsTest.cc
+    HealthProbeTest.cc
     IdempotencyIntegrationTest.cc
+    OnceCallbackTest.cc
     test_main.cc
     PayAuthFilterTest.cc
     PayAuthMetricsTest.cc
@@ -21,6 +24,7 @@ set(TEST_SRC
     WechatCallbackIntegrationTest.cc  # [PASS] Updated to new API (Phase 3)
     RefundQueryTest.cc  # [PASS] Updated to new API (Phase 3)
     ReconcileSummaryTest.cc  # [PASS] Updated to new API (Phase 3)
+    StartupValidatorTest.cc
 )
 
 add_executable(
@@ -34,6 +38,7 @@ add_executable(
     ../models/PayOrder.cc
     ../models/PayPayment.cc
     ../models/PayRefund.cc
+    ../controllers/HealthCheckController.cc
     ../controllers/MetricsController.cc
     ../controllers/PayMetricsController.cc
     ../plugins/PayPlugin.cc
@@ -46,6 +51,7 @@ add_executable(
     ../services/ReconciliationService.cc
     ../utils/PayUtils.cc
     ../utils/ConfigLoader.cc
+    ../utils/StartupValidator.cc
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -62,6 +68,18 @@ add_custom_command(
             "${CMAKE_CURRENT_SOURCE_DIR}/../config.json"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/config.json"
 )
+# .env is not tracked in git; only copy it when present (local dev). CI injects
+# config via environment variables and a clean checkout has no .env, which would
+# otherwise make `cmake -E copy_if_different` fail the build.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.env")
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/../.env"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/.env"
+    )
+endif()
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
@@ -73,8 +91,10 @@ if(MSVC)
         _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
         _CRT_SECURE_NO_WARNINGS
     )
-elseif(APPLE)
-    # macOS needs codecvt compatibility for C++17
+else()
+    # Non-MSVC (Linux/macOS): regenerated Drogon ORM models use
+    # std::wstring_convert/std::codecvt_utf8_utf16 without including the headers;
+    # force-include orm_compat.h to provide them.
     target_compile_options(${PROJECT_NAME} PRIVATE
         -include "${CMAKE_CURRENT_SOURCE_DIR}/../models/orm_compat.h"
     )

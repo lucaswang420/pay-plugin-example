@@ -208,8 +208,15 @@ void RefundService::createRefund(
         {
             LOG_INFO << "[RefundService] Saving idempotency snapshot for key=" << idempotencyKey;
             // Save successful response to idempotency cache
-            idempotencyService_->updateResult(idempotencyKey, requestHash, response, []() {
-                LOG_INFO << "[RefundService] Idempotency snapshot saved successfully";
+            idempotencyService_->updateResult(idempotencyKey, requestHash, response, [](bool success) {
+                if (success)
+                {
+                    LOG_INFO << "[RefundService] Idempotency snapshot saved successfully";
+                }
+                else
+                {
+                    LOG_WARN << "[RefundService] Failed to save idempotency snapshot";
+                }
             });
         }
         // Call user callback
@@ -265,8 +272,31 @@ void RefundService::createRefund(
               return;
           }
 
-          // Proceed with refund creation
-          proceedRefund(request, idempotencyKey, requestHash, std::move(*wrappedSharedCb));
+          // Proceed with refund creation. Wrap the callback so that if the
+          // operation fails after the key was reserved, the in-flight
+          // reservation is released (preventing key poisoning on retry).
+          auto proceedCb =
+            [this, idempotencyKey, requestHash, wrappedSharedCb](
+              const Json::Value &response, const std::error_code &error) {
+                if (!idempotencyKey.empty() && error)
+                {
+                    idempotencyService_->clearReservation(
+                      idempotencyKey,
+                      requestHash,
+                      [wrappedSharedCb, response, error](bool) {
+                          if (*wrappedSharedCb)
+                          {
+                              (*wrappedSharedCb)(response, error);
+                          }
+                      });
+                    return;
+                }
+                if (*wrappedSharedCb)
+                {
+                    (*wrappedSharedCb)(response, error);
+                }
+            };
+          proceedRefund(request, idempotencyKey, requestHash, std::move(proceedCb));
       }
     );
 }

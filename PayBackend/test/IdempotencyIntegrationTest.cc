@@ -9,73 +9,20 @@
 #include "../models/PayOrder.h"
 #include "../models/PayPayment.h"
 #include "../models/PayRefund.h"
+#include "../services/IdempotencyService.h"
 #include <filesystem>
 #include <fstream>
 #include <future>
 #include <string>
 #include <vector>
 #include <chrono>
+#include "TestConfigHelper.h"
 
 namespace
 {
-bool loadConfig(Json::Value &root)
-{
-    const auto cwd = std::filesystem::current_path();
-    const std::vector<std::filesystem::path> candidates =
-      {cwd / "config.json",
-       cwd / "test" / "Release" / "config.json",
-       cwd / "test" / "Debug" / "config.json",
-       cwd / "Release" / "config.json",
-       cwd / "Debug" / "config.json",
-       cwd.parent_path() / "config.json",
-       cwd.parent_path() / "test" / "Release" / "config.json",
-       cwd.parent_path() / "test" / "Debug" / "config.json",
-       cwd.parent_path() / "Release" / "config.json",
-       cwd.parent_path() / "Debug" / "config.json"};
+using pay::test_util::loadConfig;
+using pay::test_util::buildPgConnInfo;
 
-    std::filesystem::path configPath;
-    for (const auto &candidate : candidates)
-    {
-        if (std::filesystem::exists(candidate))
-        {
-            configPath = candidate;
-            break;
-        }
-    }
-
-    if (configPath.empty())
-    {
-        return false;
-    }
-
-    std::ifstream in(configPath.string());
-    if (!in)
-    {
-        return false;
-    }
-
-    Json::CharReaderBuilder builder;
-    std::string errors;
-    const bool ok = Json::parseFromStream(builder, in, &root, &errors);
-    return ok;
-}
-
-std::string buildPgConnInfo(const Json::Value &db)
-{
-    const std::string host = db.get("host", "").asString();
-    const int port = db.get("port", 5432).asInt();
-    const std::string dbname = db.get("dbname", "").asString();
-    const std::string user = db.get("user", "").asString();
-    const std::string passwd = db.get("passwd", "").asString();
-
-    std::string connInfo =
-      "host=" + host + " port=" + std::to_string(port) + " dbname=" + dbname + " user=" + user;
-    if (!passwd.empty())
-    {
-        connInfo += " password=" + passwd;
-    }
-    return connInfo;
-}
 }  // namespace
 
 DROGON_TEST(PayIdempotency_DbUniqueKey)
@@ -650,4 +597,73 @@ DROGON_TEST(PayLedger_OrmRoundTrip)
     CHECK(fetched.getValueOfBalance() == "100.00");
 
     mapper.deleteByPrimaryKey(id);
+}
+
+DROGON_TEST(PayIdempotency_ClearReservationReleasesKey)
+{
+    // Proves the P2 fix: when an operation fails after reserving an idempotency
+    // key, clearReservation() releases the in-flight row so the next retry with
+    // the same key+hash re-reserves (Started) instead of being reported as
+    // InProgress (key poisoning for up to the TTL).
+    Json::Value root;
+    CHECK(loadConfig(root));
+    CHECK(root.isMember("db_clients"));
+    CHECK(root["db_clients"].isArray());
+    CHECK(!root["db_clients"].empty());
+
+    const auto &db = root["db_clients"][0];
+    const std::string connInfo = buildPgConnInfo(db);
+    CHECK(!connInfo.empty());
+
+    auto client = drogon::orm::DbClient::newPgClient(connInfo, 1);
+    CHECK(client != nullptr);
+
+    client->execSqlSync(
+      "CREATE TABLE IF NOT EXISTS pay_idempotency ("
+      "idempotency_key VARCHAR(128) PRIMARY KEY,"
+      "request_hash VARCHAR(64) NOT NULL,"
+      "response_snapshot TEXT,"
+      "expire_at TIMESTAMP,"
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+      "updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    );
+
+    IdempotencyService svc(client, nullptr, 60);
+
+    const std::string key = "clr_" + drogon::utils::getUuid();
+    const std::string hash = "h_" + drogon::utils::getUuid();
+    Json::Value req;
+    req["amount"] = "1.00";
+
+    auto check = [&](const std::string &k, const std::string &h) {
+        auto p = std::make_shared<std::promise<IdempotencyService::CheckResult>>();
+        auto f = p->get_future();
+        svc.checkAndSetStatus(k, h, req, [p](const IdempotencyService::CheckResult &r) {
+            p->set_value(r);
+        });
+        CHECK(f.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+        return f.get();
+    };
+    auto clear = [&](const std::string &k, const std::string &h) {
+        auto p = std::make_shared<std::promise<bool>>();
+        auto f = p->get_future();
+        svc.clearReservation(k, h, [p](bool ok) { p->set_value(ok); });
+        CHECK(f.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+        return f.get();
+    };
+
+    // 1. First request reserves the key.
+    CHECK(check(key, hash).status == IdempotencyService::CheckStatus::Started);
+
+    // 2. Without cleanup, a retry with the same key+hash is InProgress. This is
+    //    the poisoning condition the fix targets; it must hold before clearing
+    //    so step 3 is a meaningful check.
+    CHECK(check(key, hash).status == IdempotencyService::CheckStatus::InProgress);
+
+    // 3. After clearReservation (the failure-path cleanup), the retry
+    //    re-reserves instead of staying poisoned.
+    CHECK(clear(key, hash));
+    CHECK(check(key, hash).status == IdempotencyService::CheckStatus::Started);
+
+    client->execSqlSync("DELETE FROM pay_idempotency WHERE idempotency_key = $1", key);
 }

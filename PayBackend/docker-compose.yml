@@ -46,15 +46,11 @@ services:
       dockerfile: Dockerfile
     container_name: pay_server
     ports:
-      - "8080:8080"
+      - "5566:5566"
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=pay_test
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - PAY_DB_PASSWORD=postgres
+      - PAY_REDIS_PASSWORD=
+      - PAY_API_KEY=test_key_123456
     volumes:
       - ./config.json:/app/config.json:ro
       - ./certs:/app/certs:ro
@@ -65,7 +61,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5566/healthz"]
       interval: 30s
       timeout: 3s
       retries: 3

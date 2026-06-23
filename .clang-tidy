@@ -1,0 +1,11 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays
+WarningsAsErrors: ''
+HeaderFilterRegex: 'PayBackend/.*'
+FormatStyle: none

@@ -4,6 +4,7 @@
 #include "../models/PayPayment.h"
 #include "../models/PayLedger.h"
 #include "../models/PayIdempotency.h"
+#include "../utils/OnceCallback.h"
 #include "../utils/PayUtils.h"
 #include <drogon/drogon.h>
 #include <random>
@@ -24,6 +25,26 @@ using PayIdempotencyModel = drogon_model::pay_test::PayIdempotency;
 
 namespace
 {
+std::string generatePaymentNoValue()
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 99999999);
+
+    std::ostringstream oss;
+    time_t now = std::time(nullptr);
+    struct tm tmInfo;
+#ifdef _WIN32
+    localtime_s(&tmInfo, &now);
+#else
+    localtime_r(&now, &tmInfo);
+#endif
+    oss << "PAY" << std::put_time(&tmInfo, "%Y%m%d%H%M%S");
+    oss << std::setfill('0') << std::setw(8) << dis(gen);
+
+    return oss.str();
+}
+
 // Helper functions adapted from PayPlugin.cc
 void insertLedgerEntry(
   const std::shared_ptr<DbClient> &dbClient,
@@ -189,8 +210,15 @@ void PaymentService::createPayment(
     // Use SHA-256 for cryptographic hashing (more secure than std::hash)
     std::string requestHash = drogon::utils::getSha256(requestStr);
 
+    auto finalCb =
+      pay::utils::makeOnceCallback<void(const Json::Value &, const std::error_code &)>(
+        std::move(callback)
+      );
+    auto sharedCb = std::make_shared<decltype(finalCb)>(finalCb);
+    auto idempotencyService = idempotencyService_;
+
     // Check idempotency
-    idempotencyService_->checkAndSet(
+    idempotencyService_->checkAndSetStatus(
       idempotencyKey,
       requestHash,
       [&request]() {
@@ -199,40 +227,96 @@ void PaymentService::createPayment(
           req["amount"] = request.amount;
           return req;
       }(),
-      [this,
-       request,
-       idempotencyKey,
-       callback](bool canProceed, const Json::Value &cachedResult) mutable {
-          if (!canProceed)
+      [this, request, idempotencyKey, requestHash, sharedCb, idempotencyService](
+        const IdempotencyService::CheckResult &checkResult
+      ) mutable {
+          if (checkResult.status == IdempotencyService::CheckStatus::Conflict)
           {
               // Idempotency conflict
               Json::Value error;
               error["code"] = 1004;
               error["message"] = "Idempotency conflict: different parameters for same key";
-              callback(error, pay::makePayError(1004, "idempotency key conflict"));
+              sharedCb->call(error, pay::makePayError(1004, "idempotency key conflict"));
               return;
           }
 
-          if (!cachedResult.isNull())
+          if (checkResult.status == IdempotencyService::CheckStatus::InProgress)
+          {
+              Json::Value error;
+              error["code"] = 1004;
+              error["message"] = "Idempotency request is already in progress";
+              sharedCb->call(error, pay::makePayError(1004, "idempotency request in progress"));
+              return;
+          }
+
+          if (checkResult.status == IdempotencyService::CheckStatus::Error)
+          {
+              Json::Value error;
+              error["code"] = 1003;
+              error["message"] = "Idempotency check failed";
+              sharedCb->call(error, pay::makePayError(1003, "idempotency check failed"));
+              return;
+          }
+
+          if (checkResult.status == IdempotencyService::CheckStatus::Replay)
           {
               // Return cached result
-              callback(cachedResult, std::error_code());
+              sharedCb->call(checkResult.cachedResult, std::error_code());
               return;
           }
 
           // Proceed with payment creation
-          std::string paymentNo = generatePaymentNo();
+          std::string paymentNo = generatePaymentNoValue();
           int64_t totalFen = 0;
           if (!pay::utils::parseAmountToFen(request.amount, totalFen))
           {
               Json::Value error;
               error["code"] = 1001;
               error["message"] = "Invalid amount format";
-              callback(error, pay::makePayError(1001, "Invalid amount format"));
+              auto ec = pay::makePayError(1001, "Invalid amount format");
+              if (!idempotencyKey.empty())
+              {
+                  // Validation failed after the key was reserved: release it so
+                  // the client can retry with a corrected amount.
+                  idempotencyService->clearReservation(
+                    idempotencyKey,
+                    requestHash,
+                    [sharedCb, error, ec](bool) { sharedCb->call(error, ec); }
+                  );
+                  return;
+              }
+              sharedCb->call(error, ec);
               return;
           }
 
-          proceedCreatePayment(request, paymentNo, totalFen, std::move(callback));
+          auto wrappedCb = [idempotencyService, idempotencyKey, requestHash, sharedCb](
+                             const Json::Value &result, const std::error_code &error
+                           ) {
+              if (!idempotencyKey.empty() && !error && result.isMember("data"))
+              {
+                  idempotencyService->updateResult(
+                    idempotencyKey,
+                    requestHash,
+                    result,
+                    [sharedCb, result, error](bool) { sharedCb->call(result, error); }
+                  );
+                  return;
+              }
+              if (!idempotencyKey.empty() && error)
+              {
+                  // Operation failed after the key was reserved: release the
+                  // in-flight reservation so the next retry is not reported as
+                  // InProgress (key poisoning).
+                  idempotencyService->clearReservation(
+                    idempotencyKey,
+                    requestHash,
+                    [sharedCb, result, error](bool) { sharedCb->call(result, error); }
+                  );
+                  return;
+              }
+              sharedCb->call(result, error);
+          };
+          proceedCreatePayment(request, paymentNo, totalFen, std::move(wrappedCb));
       }
     );
 }

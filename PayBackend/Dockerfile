@@ -65,11 +65,11 @@ RUN chown payuser:payuser /app/PayServer /app/PayBackendTest /app/config.example
 USER payuser
 
 # Expose port
-EXPOSE 8080
+EXPOSE 5566
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+    CMD curl -f http://localhost:5566/healthz || exit 1
 
 # Run application
 CMD ["./PayServer"]

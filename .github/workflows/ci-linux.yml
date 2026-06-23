@@ -11,6 +11,54 @@ env:
   DROGON_VERSION: "v1.9.12"
 
 jobs:
+  static-analysis:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        run: sudo apt-get update && sudo apt-get install -y clang-tidy
+
+      - name: Emoji detection
+        run: |
+          echo "Checking for emoji in source files..."
+          if grep -rPn '[\x{1F000}-\x{1FFFF}]' PayBackend/ --include='*.h' --include='*.cc'; then
+            echo "ERROR: Emoji found in source files"
+            exit 1
+          fi
+          echo "No emoji found."
+
+      - name: Hardcoded secrets detection
+        run: |
+          echo "Checking for hardcoded secrets..."
+          if grep -rn -E '(passwd|password|secret)\s*[:=]\s*"[^_${}][^"]{2,}"' PayBackend/ \
+               --include='*.h' --include='*.cc' --include='*.json' \
+               | grep -v '__env_var' | grep -v '.example' | grep -v 'test_key_'; then
+            echo "ERROR: Possible hardcoded secret found"
+            exit 1
+          fi
+          echo "No hardcoded secrets found."
+
+      - name: CoroMapper usage detection
+        run: |
+          echo "Checking for CoroMapper usage (excluding auto-generated ORM models)..."
+          if grep -rn 'CoroMapper' PayBackend/ --include='*.h' --include='*.cc' --exclude-dir=models; then
+            echo "ERROR: CoroMapper usage detected outside models/"
+            exit 1
+          fi
+          echo "No CoroMapper usage found outside models/."
+
+      - name: Old Plugin API detection
+        run: |
+          echo "Checking for old Plugin API usage in tests..."
+          if grep -rn 'plugin.*->.*method.*req.*callback' PayBackend/test/ --include='*.cc'; then
+            echo "ERROR: Old Plugin API usage detected in tests"
+            exit 1
+          fi
+          echo "No old Plugin API usage found."
+
   build-and-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -120,6 +168,7 @@ jobs:
           PAY_DB_HOST: "127.0.0.1"
           PAY_REDIS_HOST: "127.0.0.1"
           PAY_DB_PASSWORD: "123456"
+          PAY_API_KEY: "test_key_123456"
         run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
 
       - name: Upload test logs on failure

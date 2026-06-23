@@ -1,9 +1,161 @@
 #include "HealthCheckController.h"
-#include "../plugins/PayPlugin.h"
-#include <drogon/orm/DbClient.h>
-#include <drogon/nosql/RedisClient.h>
+#include <drogon/drogon.h>
 #include <json/json.h>
-#include <chrono>
+
+void HealthCheckController::healthz(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    if (req->method() == Options)
+    {
+        auto resp = HttpResponse::newHttpResponse();
+        callback(resp);
+        return;
+    }
+
+    Json::Value response;
+
+    bool loopAlive = (drogon::app().getLoop() != nullptr);
+    bool isRunning = drogon::app().isRunning();
+
+    if (loopAlive && isRunning)
+    {
+        response["status"] = "alive";
+        auto resp = HttpResponse::newHttpJsonResponse(response);
+        resp->setStatusCode(k200OK);
+        callback(resp);
+    }
+    else
+    {
+        response["status"] = "dead";
+        if (!loopAlive)
+            response["reason"] = "event_loop_null";
+        else
+            response["reason"] = "not_running";
+        auto resp = HttpResponse::newHttpJsonResponse(response);
+        resp->setStatusCode(k503ServiceUnavailable);
+        callback(resp);
+    }
+}
+
+void HealthCheckController::readyz(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    if (req->method() == Options)
+    {
+        auto resp = HttpResponse::newHttpResponse();
+        callback(resp);
+        return;
+    }
+
+    auto dbClient = drogon::app().getDbClient();
+    auto redisClient = drogon::app().getRedisClient();
+
+    struct ReadyState
+    {
+        std::mutex mtx;
+        std::vector<std::string> failed;
+        int pending = 0;
+    };
+    auto state = std::make_shared<ReadyState>();
+
+    state->pending = 2;  // DB + Redis
+    if (redisClient == nullptr)
+        state->pending = 1;  // Only DB
+
+    // DB check
+    if (dbClient)
+    {
+        dbClient->execSqlAsync(
+          "SELECT 1",
+          [state](const drogon::orm::Result &) {
+              std::lock_guard<std::mutex> lock(state->mtx);
+              state->pending--;
+          },
+          [state](const drogon::orm::DrogonDbException &e) {
+              std::lock_guard<std::mutex> lock(state->mtx);
+              state->failed.push_back("db");
+              state->pending--;
+          }
+        );
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(state->mtx);
+        state->failed.push_back("db");
+        state->pending--;
+    }
+
+    // Redis check: PING
+    if (redisClient)
+    {
+        redisClient->execCommandAsync(
+          [state](const drogon::nosql::RedisResult &) {
+              std::lock_guard<std::mutex> lock(state->mtx);
+              state->pending--;
+          },
+          [state](const std::exception &e) {
+              std::lock_guard<std::mutex> lock(state->mtx);
+              state->failed.push_back("redis");
+              state->pending--;
+          },
+          "PING"
+        );
+    }
+
+    // 1-second deadline
+    auto *loop = drogon::app().getLoop();
+    loop->runAfter(1.0, [state, callback, this]() {
+        std::lock_guard<std::mutex> lock(state->mtx);
+        if (state->pending > 0)
+        {
+            state->failed.push_back("timeout");
+        }
+
+        Json::Value response;
+        bool ready = state->failed.empty();
+
+        if (ready)
+        {
+            consecutiveFailures_.store(0);
+            lastReadyState_.store(true);
+        }
+        else
+        {
+            int failures = consecutiveFailures_.fetch_add(1) + 1;
+            if (failures >= FAILURE_THRESHOLD)
+            {
+                lastReadyState_.store(false);
+            }
+        }
+
+        bool reportReady = lastReadyState_.load();
+
+        if (reportReady)
+        {
+            response["status"] = "ready";
+            auto resp = HttpResponse::newHttpJsonResponse(response);
+            resp->setStatusCode(k200OK);
+            callback(resp);
+        }
+        else
+        {
+            response["status"] = "not_ready";
+            Json::Value failed(Json::arrayValue);
+            for (const auto &f : state->failed)
+            {
+                failed.append(f);
+            }
+            response["failed"] = failed;
+            auto resp = HttpResponse::newHttpJsonResponse(response);
+            resp->setStatusCode(k503ServiceUnavailable);
+            callback(resp);
+        }
+    });
+}
 
 void HealthCheckController::health(
   const HttpRequestPtr &req,
@@ -17,77 +169,9 @@ void HealthCheckController::health(
         return;
     }
 
-    Json::Value response;
-    bool allHealthy = true;
-
-    // Get current timestamp
-    auto now = std::chrono::system_clock::now();
-    auto timestamp =
-      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    response["timestamp"] = static_cast<Json::Int64>(timestamp);
-
-    // Check database connectivity
-    Json::Value services;
-    try
-    {
-        auto dbClient = drogon::app().getDbClient();
-
-        if (dbClient)
-        {
-            // Database client exists - mark as ok
-            // In production, you might want to do an actual query
-            services["database"] = "ok";
-        }
-        else
-        {
-            services["database"] = "error: No database client";
-            allHealthy = false;
-        }
-    }
-    catch (const std::exception &e)
-    {
-        services["database"] = "error: " + std::string(e.what());
-        allHealthy = false;
-    }
-
-    // Check Redis connectivity
-    try
-    {
-        auto redisClient = drogon::app().getRedisClient();
-
-        if (redisClient)
-        {
-            // Redis client exists - mark as ok
-            services["redis"] = "ok";
-        }
-        else
-        {
-            // Redis is optional - mark as not configured but not a failure
-            services["redis"] = "not_configured";
-        }
-    }
-    catch (const std::exception &)
-    {
-        // Redis is optional - don't fail health check
-        services["redis"] = "not_configured";
-    }
-
-    // Set overall status
-    response["services"] = services;
-    response["status"] = allHealthy ? "healthy" : "unhealthy";
-
-    // Create response
-    auto resp = HttpResponse::newHttpJsonResponse(response);
-
-    // Set HTTP status code
-    if (allHealthy)
-    {
-        resp->setStatusCode(k200OK);
-    }
-    else
-    {
-        resp->setStatusCode(k503ServiceUnavailable);
-    }
-
-    callback(resp);
+    readyz(req, [callback](const HttpResponsePtr &resp) {
+        resp->addHeader("Deprecation", "true");
+        resp->addHeader("Sunset", "2026-08-28");
+        callback(resp);
+    });
 }

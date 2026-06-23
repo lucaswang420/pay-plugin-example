@@ -36,6 +36,11 @@ class ConfigLoader
      */
     static bool loadEnvFile(const std::string &envPath = "./.env");
 
+    /**
+     * @brief Mask sensitive value for logging (first 4 + *** + last 4)
+     */
+    static std::string maskSensitive(const std::string &value);
+
   private:
     /**
      * @brief Replace placeholders in a JSON value recursively
